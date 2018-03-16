@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package nodecom;
+
+service NodeCom {
+    rpc SubmitNonce(SubmitNonceRequest) returns (SubmitNonceReply) {}
+}
+
+message SubmitNonceReply {}
+
+message SubmitNonceRequest {
+    uint64 accountID  = 1;
+    uint64 nonce  = 2;
+    uint64 deadline = 3;
+    uint64 blockHeight = 4;
+    string secret = 5;
+}
