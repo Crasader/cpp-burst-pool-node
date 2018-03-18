@@ -3,7 +3,7 @@
     "deadlineLimit": 18446744073709551615,
     "poolPublicId": 10282355196851764065,
     "listenAddress": "",
-    "listenPort": 9980,
+    "listenPort": 8124,
     "walletURI": "",
     "dbAddress": "",
     "dbName": "testburstwallet",

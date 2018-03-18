@@ -6,12 +6,16 @@
 #include <boost/thread/thread.hpp>
 #include <boost/asio/io_service.hpp>
 #include <mutex>
+#include <array>
 #include "concurrentqueue.h"
 
 struct CalcDeadlineReq {
     uint64_t account_id;
     uint64_t nonce;
     uint64_t deadline;
+    uint32_t scoop_nr;
+    uint64_t base_target;
+    uint8_t *gensig;
     bool processed = false;
     std::condition_variable cv;
     std::mutex mu;
@@ -43,5 +47,6 @@ public:
         _distribute_thread->interrupt();
     }
 
-    uint64_t calculate_deadline(uint64_t account_id, uint64_t nonce);
+    uint64_t calculate_deadline(uint64_t account_id, uint64_t nonce, uint64_t base_target,
+                                uint32_t scoop_nr, uint8_t *gensig);
 };

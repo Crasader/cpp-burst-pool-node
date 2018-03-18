@@ -13,21 +13,22 @@
 #include "mysql_connection.h"
 #include <cppconn/driver.h>
 #include <cppconn/statement.h>
+#include <array>
 #include <unordered_set>
 
 class Block {
 public:
-    Block(const Poco::UInt64 height, const Poco::UInt64 base_target, const std::string gen_sig):
+    Block(const Poco::UInt64 height, const Poco::UInt64 base_target):
         _height(height),
-        _base_target(base_target),
-        _gen_sig(gen_sig) {};
+        _base_target(base_target) {}
     Block(Block &other);
     Block():
         _height(0),
         _base_target(0) {};
     uint64_t _height, _base_target;
     uint32_t _scoop;
-    std::string _gen_sig;
+    bool processed = false;
+    std::array<uint8_t, 32> _gensig;
 };
 
 class Wallet {

@@ -25,6 +25,8 @@
 #include "Config.hpp"
 #include "NodeComClient.hpp"
 
+#include "burstmath.h"
+
 using Poco::Net::ServerSocket;
 using Poco::Net::HTTPRequestHandler;
 using Poco::Net::HTTPRequestHandlerFactory;
@@ -45,7 +47,7 @@ using Poco::NullOutputStream;
 using Poco::StreamCopier;
 
 Wallet *wallet;
-Config *config;
+Config *cfg;
 NodeComClient *node_com_client;
 
 DeadlineRequestHandler deadline_request_handler;
@@ -79,7 +81,7 @@ public:
             std::string mining_info = wallet->get_cached_mining_info();
             ostr << mining_info;
         } else if (form["requestType"] == "submitNonce") {
-            uint64_t account_id, nonce;
+            uint64_t account_id, nonce, height;
             // TODO: check blockheight
             try {
                 account_id = std::stoull(form["accountId"]);
@@ -97,14 +99,34 @@ public:
                 return;
             }
 
+            Block current_block;
+            wallet->get_current_block(current_block);
+            try {
+                height = std::stoull(form["blockheight"]);
+            } catch (const std::exception &e) {
+                // we don't know on which heigh the miner submitted
+                goto SKIP_BLOCK_CONFIRMATION;
+            }
+
+            if (height != current_block._height) {
+                response.setStatus(Poco::Net::HTTPResponse::HTTP_BAD_REQUEST);
+                writeJSONError(ostr, 1005, "Submitted on wrong height");
+                return;
+            }
+
+        SKIP_BLOCK_CONFIRMATION:
+
             if (!wallet->correct_reward_recipient(account_id)) {
                 response.setStatus(Poco::Net::HTTPResponse::HTTP_FORBIDDEN);
                 writeJSONError(ostr, 1004, "Account's reward recipient doesn't match the pool's");
                 return;
             }
-            
-            uint64_t deadline = deadline_request_handler.calculate_deadline(account_id, nonce);
-            if (deadline > config->deadline_limit) {
+
+            uint64_t deadline = deadline_request_handler.calculate_deadline(
+                    account_id, nonce, current_block._base_target, current_block._scoop,
+                    (uint8_t *) &current_block._gensig[0]);
+
+            if (deadline > cfg->deadline_limit) {
                 response.setStatus(Poco::Net::HTTPResponse::HTTP_BAD_REQUEST);
                 writeJSONError(ostr, 1008, "Deadline exceeds deadline limit of the pool");
                 return;
@@ -115,14 +137,14 @@ public:
             req.set_deadline(deadline);
             req.set_accountid(account_id);
             req.set_blockheight(0);
-            req.set_secret(config->secret);
+            req.set_secret(cfg->secret);
             bool success = node_com_client->SubmitNonce(req);
             if (!success) {
                 // TODO: log!
             }
 
             response.setStatus(Poco::Net::HTTPResponse::HTTP_OK);
-            ostr << "{result:\"success\",deadline:" << deadline << "}";
+            ostr << "{\"result\":\"success\",\"deadline\":" << deadline << "}";
         }
     }
 
@@ -158,9 +180,7 @@ protected:
     }
 
     int main(const std::vector<std::string> &args) {
-        unsigned short port = 9980;
-
-        ServerSocket svs(port);
+        ServerSocket svs(cfg->listen_port);
 	Poco::Net::HTTPServerParams *params = new Poco::Net::HTTPServerParams();
 	params->setMaxQueued(2000);
 	params->setMaxThreads(100);
@@ -178,10 +198,10 @@ protected:
 int main(int argc, char **argv) {
     HTTPFormServer app;
 
-    config = new Config("config.json");
+    cfg = new Config("config.json");
     wallet = new Wallet(Poco::URI("http://176.9.47.157:6876/burst?requestType=getMiningInfo"),
-                        "localhost:3306", config->db_name, config->db_user, config->db_password);
-    node_com_client = new NodeComClient(grpc::CreateChannel(config->pool_address,
+                        "localhost:3306", cfg->db_name, cfg->db_user, cfg->db_password);
+    node_com_client = new NodeComClient(grpc::CreateChannel(cfg->pool_address,
                                                             grpc::InsecureChannelCredentials()));
 
     return app.run(argc, argv);

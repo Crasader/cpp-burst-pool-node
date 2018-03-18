@@ -33,7 +33,7 @@ extern "C" {
     gendata[NONCE_SIZE + offset + 7] = xv[0]
 
 uint32_t
-calculate_scoop(uint64_t height, uint8_t *gensig) {
+calculate_scoop(const uint64_t height, const uint8_t *gensig) {
     shabal_context sc;
     uint8_t new_gensig[32];
 
@@ -146,7 +146,16 @@ calculate_deadlines_sse4(
 
 void
 calculate_deadlines_avx2(
-          uint32_t scoop,  uint64_t base_target, uint8_t* gensig, bool poc2,
+          bool poc2,
+
+          uint64_t base_target1, uint64_t base_target2, uint64_t base_target3, uint64_t base_target4,
+          uint64_t base_target5, uint64_t base_target6, uint64_t base_target7, uint64_t base_target8,
+
+          uint32_t scoop_nr1, uint32_t scoop_nr2, uint32_t scoop_nr3, uint32_t scoop_nr4,
+          uint32_t scoop_nr5, uint32_t scoop_nr6, uint32_t scoop_nr7, uint32_t scoop_nr8,
+
+          uint8_t *gensig1, uint8_t *gensig2, uint8_t *gensig3, uint8_t *gensig4,
+          uint8_t *gensig5, uint8_t *gensig6, uint8_t *gensig7, uint8_t *gensig8,
 
           uint64_t addr1,  uint64_t addr2,  uint64_t addr3,  uint64_t addr4,
           uint64_t addr5,  uint64_t addr6,  uint64_t addr7,  uint64_t addr8,
@@ -154,8 +163,8 @@ calculate_deadlines_avx2(
           uint64_t nonce1, uint64_t nonce2, uint64_t nonce3, uint64_t nonce4,
           uint64_t nonce5, uint64_t nonce6, uint64_t nonce7, uint64_t nonce8,
 
-          uint64_t* deadline1,uint64_t* deadline2,uint64_t* deadline3,uint64_t* deadline4,
-          uint64_t* deadline5,uint64_t* deadline6,uint64_t* deadline7,uint64_t* deadline8) {
+          uint64_t *deadline1, uint64_t *deadline2, uint64_t *deadline3, uint64_t*deadline4,
+          uint64_t *deadline5, uint64_t *deadline6, uint64_t *deadline7, uint64_t *deadline8) {
     char final1[32], final2[32], final3[32], final4[32];
     char final5[32], final6[32], final7[32], final8[32];
     char gendata1[16 + NONCE_SIZE], gendata2[16 + NONCE_SIZE], gendata3[16 + NONCE_SIZE], gendata4[16 + NONCE_SIZE];
@@ -230,41 +239,41 @@ calculate_deadlines_avx2(
     mshabal256_context deadline_sc;
     mshabal256_init(&deadline_sc);
     mshabal256(&deadline_sc,
-               gensig, gensig, gensig, gensig,
-               gensig, gensig, gensig, gensig,
+               gensig1, gensig2, gensig3, gensig4,
+               gensig5, gensig6, gensig7, gensig8,
                HASH_SIZE);
 
     uint8_t scoop1[SCOOP_SIZE], scoop2[SCOOP_SIZE], scoop3[SCOOP_SIZE], scoop4[SCOOP_SIZE],
             scoop5[SCOOP_SIZE], scoop6[SCOOP_SIZE], scoop7[SCOOP_SIZE], scoop8[SCOOP_SIZE];
 
-    memcpy(scoop1, gendata1 + (scoop * SCOOP_SIZE), 32);
-    memcpy(scoop2, gendata2 + (scoop * SCOOP_SIZE), 32);
-    memcpy(scoop3, gendata3 + (scoop * SCOOP_SIZE), 32);
-    memcpy(scoop4, gendata4 + (scoop * SCOOP_SIZE), 32);
-    memcpy(scoop5, gendata5 + (scoop * SCOOP_SIZE), 32);
-    memcpy(scoop6, gendata6 + (scoop * SCOOP_SIZE), 32);
-    memcpy(scoop7, gendata7 + (scoop * SCOOP_SIZE), 32);
-    memcpy(scoop8, gendata8 + (scoop * SCOOP_SIZE), 32);
+    memcpy(scoop1, gendata1 + (scoop_nr1 * SCOOP_SIZE), 32);
+    memcpy(scoop2, gendata2 + (scoop_nr2 * SCOOP_SIZE), 32);
+    memcpy(scoop3, gendata3 + (scoop_nr3 * SCOOP_SIZE), 32);
+    memcpy(scoop4, gendata4 + (scoop_nr4 * SCOOP_SIZE), 32);
+    memcpy(scoop5, gendata5 + (scoop_nr5 * SCOOP_SIZE), 32);
+    memcpy(scoop6, gendata6 + (scoop_nr6 * SCOOP_SIZE), 32);
+    memcpy(scoop7, gendata7 + (scoop_nr7 * SCOOP_SIZE), 32);
+    memcpy(scoop8, gendata8 + (scoop_nr8 * SCOOP_SIZE), 32);
 
     if (poc2) {
-        memcpy(scoop1 + 32, gendata1 + ((4095 - scoop) * SCOOP_SIZE) + 32, 32);
-        memcpy(scoop2 + 32, gendata2 + ((4095 - scoop) * SCOOP_SIZE) + 32, 32);
-        memcpy(scoop3 + 32, gendata3 + ((4095 - scoop) * SCOOP_SIZE) + 32, 32);
-        memcpy(scoop4 + 32, gendata4 + ((4095 - scoop) * SCOOP_SIZE) + 32, 32);
-        memcpy(scoop5 + 32, gendata5 + ((4095 - scoop) * SCOOP_SIZE) + 32, 32);
-        memcpy(scoop6 + 32, gendata6 + ((4095 - scoop) * SCOOP_SIZE) + 32, 32);
-        memcpy(scoop7 + 32, gendata7 + ((4095 - scoop) * SCOOP_SIZE) + 32, 32);
-        memcpy(scoop8 + 32, gendata8 + ((4095 - scoop) * SCOOP_SIZE) + 32, 32);
+        memcpy(scoop1 + 32, gendata1 + ((4095 - scoop_nr1) * SCOOP_SIZE) + 32, 32);
+        memcpy(scoop2 + 32, gendata2 + ((4095 - scoop_nr2) * SCOOP_SIZE) + 32, 32);
+        memcpy(scoop3 + 32, gendata3 + ((4095 - scoop_nr3) * SCOOP_SIZE) + 32, 32);
+        memcpy(scoop4 + 32, gendata4 + ((4095 - scoop_nr4) * SCOOP_SIZE) + 32, 32);
+        memcpy(scoop5 + 32, gendata5 + ((4095 - scoop_nr5) * SCOOP_SIZE) + 32, 32);
+        memcpy(scoop6 + 32, gendata6 + ((4095 - scoop_nr6) * SCOOP_SIZE) + 32, 32);
+        memcpy(scoop7 + 32, gendata7 + ((4095 - scoop_nr7) * SCOOP_SIZE) + 32, 32);
+        memcpy(scoop8 + 32, gendata8 + ((4095 - scoop_nr8) * SCOOP_SIZE) + 32, 32);
     }
     else {
-        memcpy(scoop1 + 32, gendata1 + (scoop * SCOOP_SIZE) + 32, 32);
-        memcpy(scoop2 + 32, gendata2 + (scoop * SCOOP_SIZE) + 32, 32);
-        memcpy(scoop3 + 32, gendata3 + (scoop * SCOOP_SIZE) + 32, 32);
-        memcpy(scoop4 + 32, gendata4 + (scoop * SCOOP_SIZE) + 32, 32);
-        memcpy(scoop5 + 32, gendata5 + (scoop * SCOOP_SIZE) + 32, 32);
-        memcpy(scoop6 + 32, gendata6 + (scoop * SCOOP_SIZE) + 32, 32);
-        memcpy(scoop7 + 32, gendata7 + (scoop * SCOOP_SIZE) + 32, 32);
-        memcpy(scoop8 + 32, gendata8 + (scoop * SCOOP_SIZE) + 32, 32);
+        memcpy(scoop1 + 32, gendata1 + (scoop_nr1 * SCOOP_SIZE) + 32, 32);
+        memcpy(scoop2 + 32, gendata2 + (scoop_nr2 * SCOOP_SIZE) + 32, 32);
+        memcpy(scoop3 + 32, gendata3 + (scoop_nr3 * SCOOP_SIZE) + 32, 32);
+        memcpy(scoop4 + 32, gendata4 + (scoop_nr4 * SCOOP_SIZE) + 32, 32);
+        memcpy(scoop5 + 32, gendata5 + (scoop_nr5 * SCOOP_SIZE) + 32, 32);
+        memcpy(scoop6 + 32, gendata6 + (scoop_nr6 * SCOOP_SIZE) + 32, 32);
+        memcpy(scoop7 + 32, gendata7 + (scoop_nr7 * SCOOP_SIZE) + 32, 32);
+        memcpy(scoop8 + 32, gendata8 + (scoop_nr8 * SCOOP_SIZE) + 32, 32);
     }
 
     mshabal256(&deadline_sc, scoop1, scoop2, scoop3, scoop4, scoop5, scoop6, scoop7, scoop8, SCOOP_SIZE);
@@ -282,14 +291,14 @@ calculate_deadlines_avx2(
     uint64_t target_result7 = *(uint64_t *)final77;
     uint64_t target_result8 = *(uint64_t *)final88;
 
-    *deadline1 = target_result1 / base_target;
-    *deadline2 = target_result2 / base_target;
-    *deadline3 = target_result3 / base_target;
-    *deadline4 = target_result4 / base_target;
-    *deadline5 = target_result5 / base_target;
-    *deadline6 = target_result6 / base_target;
-    *deadline7 = target_result7 / base_target;
-    *deadline8 = target_result8 / base_target;
+    *deadline1 = target_result1 / base_target1;
+    *deadline2 = target_result2 / base_target2;
+    *deadline3 = target_result3 / base_target3;
+    *deadline4 = target_result4 / base_target4;
+    *deadline5 = target_result5 / base_target5;
+    *deadline6 = target_result6 / base_target6;
+    *deadline7 = target_result7 / base_target7;
+    *deadline8 = target_result8 / base_target8;
 }
 
 #ifdef  __cplusplus

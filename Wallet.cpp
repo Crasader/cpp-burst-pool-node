@@ -8,6 +8,7 @@
 #include "Wallet.hpp"
 #include "burstmath.h"
 #include <cppconn/resultset.h>
+#include <stdio.h>
 
 using namespace Poco::Net;
 using namespace Poco;
@@ -44,7 +45,7 @@ void Wallet::refresh_block() {
         }
 
         uint64_t height, base_target;
-        std::string gen_sig;
+        std::string gensig_str;
         if (root->has("height")) {
             height = (uint64_t) root->get("height");
         } else {
@@ -58,7 +59,7 @@ void Wallet::refresh_block() {
         }
 
         if (root->has("generationSignature")) {
-            gen_sig = root->get("generationSignature").convert<std::string>();
+            gensig_str = root->get("generationSignature").convert<std::string>();
         } else {
             return;
         }
@@ -69,11 +70,18 @@ void Wallet::refresh_block() {
             boost::upgrade_lock<boost::shared_mutex> lock(_new_block_mu);
             boost::upgrade_to_unique_lock<boost::shared_mutex> unique_lock(lock);
 
+            std::array<uint8_t, 32> gensig;
+            const char *pos = gensig_str.c_str();
+            for (size_t i = 0; i < 32; i++) {
+                sscanf( pos, "%2hhx", &gensig[i]);
+                pos += 2;
+            }
+
             _current_block_mu.writeLock();
-            current_block._height = height;
-            current_block._base_target = base_target;
-            current_block._gen_sig = gen_sig;
-            current_block._scoop = calculate_scoop(height, (uint8_t *) gen_sig.c_str());
+            _current_block._height = height;
+            _current_block._base_target = base_target;
+            _current_block._gensig = gensig;
+            _current_block._scoop = calculate_scoop(height, (uint8_t *) &gensig[0]);
             _current_block_mu.unlock();
 
             int i = _cache_idx.load();
@@ -94,7 +102,7 @@ void Wallet::get_current_block(Block &block) {
     _current_block_mu.readLock();
     block._height = _current_block._height;
     block._base_target = _current_block._base_target;
-    block._gen_sig = _current_block._gen_sig;
+    block._gensig = _current_block._gensig;
     block._scoop = _current_block._scoop;
     _current_block_mu.unlock();
 }
