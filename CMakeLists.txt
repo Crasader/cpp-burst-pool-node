@@ -29,6 +29,7 @@ set(SOURCE_FILES
   NodeComClient.cpp
   nodecom.grpc.pb.cc
   nodecom.pb.cc
+  app.cpp
   )
 
 set_source_files_properties(mshabal256_avx2.c PROPERTIES COMPILE_FLAGS -mavx2)
@@ -51,8 +52,5 @@ target_link_libraries(deadline_request_handler ${Boost_LIBRARIES} PocoUtil ${CMA
 add_library(node_com_client nodecom.grpc.pb.cc nodecom.pb.cc)
 target_link_libraries(node_com_client grpc grpc++_unsecure protobuf)
 
-add_executable(server Server.cpp Wallet.hpp DeadlineRequestHandler.hpp Config.hpp)
-target_link_libraries(server PocoNet PocoUtil PocoFoundation ${Boost_LIBRARIES} wallet burstmath
-  deadline_request_handler node_com_client)
-
-# add_executable(node_com_client NodeComClient.cpp nodecom.grpc.pb.h nodecom.pb.h)
+add_executable(app app.cpp)
+target_link_libraries(app fcgi++ fcgi ${CMAKE_THREAD_LIBS_INIT} wallet deadline_request_handler node_com_client)

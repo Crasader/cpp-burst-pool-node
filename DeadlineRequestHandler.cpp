@@ -10,22 +10,20 @@ void DeadlineRequestHandler::add_req(CalcDeadlineReq * req) {
 uint64_t DeadlineRequestHandler::calculate_deadline(uint64_t account_id, uint64_t nonce, uint64_t base_target,
                                                     uint32_t scoop_nr, uint8_t *gensig) {
     uint64_t deadline;
-    CalcDeadlineReq *calc_deadline_req = new CalcDeadlineReq ;
-    calc_deadline_req->account_id = account_id;
-    calc_deadline_req->nonce = nonce;
-    calc_deadline_req->scoop_nr = scoop_nr;
-    calc_deadline_req->base_target = base_target;
-    calc_deadline_req->gensig = gensig;
+    CalcDeadlineReq calc_deadline_req;
+    calc_deadline_req.account_id = account_id;
+    calc_deadline_req.nonce = nonce;
+    calc_deadline_req.scoop_nr = scoop_nr;
+    calc_deadline_req.base_target = base_target;
+    calc_deadline_req.gensig = gensig;
 
-    add_req(calc_deadline_req);
+    add_req(&calc_deadline_req);
     {
-        std::unique_lock<std::mutex> lock(calc_deadline_req->mu);
-        calc_deadline_req->cv.wait(lock, [&calc_deadline_req]{return calc_deadline_req->processed;});
+        std::unique_lock<std::mutex> lock(calc_deadline_req.mu);
+        calc_deadline_req.cv.wait(lock, [&calc_deadline_req]{return calc_deadline_req.processed;});
     }
 
-    deadline = calc_deadline_req->deadline;
-
-    delete calc_deadline_req;
+    deadline = calc_deadline_req.deadline;
 
     return deadline;
 }
@@ -57,10 +55,8 @@ void calculate_deadlines(std::vector<CalcDeadlineReq *> reqs, int pending) {
         &reqs[4]->deadline, &reqs[5]->deadline, &reqs[6]->deadline, &reqs[7]->deadline
     );
 
-    for (int i = 0; i < pending; i++)
-        locks[i].unlock();
-
     for (int i = 0; i < pending; i++) {
+        locks[i].unlock();
         reqs[i]->processed = true;
         reqs[i]->cv.notify_one();
     }
