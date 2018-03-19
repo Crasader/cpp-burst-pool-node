@@ -9,25 +9,18 @@
 #include "burstmath.h"
 #include <cppconn/resultset.h>
 #include <stdio.h>
+#include <curlpp/cURLpp.hpp>
+#include <curlpp/Options.hpp>
 
 using namespace Poco::Net;
 using namespace Poco;
 using namespace std;
 
-string Wallet::get_mining_info() {
-    try {
-        _client.sendRequest(_mining_info_req);
-
-        HTTPResponse res;
-        istream &is = _client.receiveResponse(res);
-
-        string content;
-        StreamCopier::copyToString(is, content);
-        return content;
-    } catch (Exception &ex) {
-        cerr << ex.displayText() << endl;
-        return "";
-    }
+std::string Wallet::get_mining_info() {
+    curlpp::Cleanup myCleanup;
+    std::ostringstream os;
+    os << curlpp::options::Url(_mining_info_uri);
+    return os.str();
 }
 
 void Wallet::refresh_block() {

@@ -33,8 +33,6 @@ public:
 
 class Wallet {
 private:
-    Poco::Net::HTTPClientSession _client;
-    Poco::Net::HTTPRequest _mining_info_req;
     boost::thread* _refresh_block_thread;
 
     Block _current_block;
@@ -54,12 +52,14 @@ private:
     boost::shared_mutex _new_block_mu;
     std::unordered_set<uint64_t> _recipients;
 
+    const std::string _mining_info_uri;
+
     void cache_reward_recipients();
 public:
-    Wallet(const Poco::URI uri, std::string db_addr, std::string db_name, std::string db_user, std::string db_pw):
-        _client(uri.getHost(), uri.getPort()),
-        _mining_info_req(Poco::Net::HTTPRequest::HTTP_GET, uri.getPathAndQuery(),
-                         Poco::Net::HTTPMessage::HTTP_1_1),
+    Wallet(const std::string mining_info_uri, std::string db_addr, std::string db_name,
+           std::string db_user, std::string db_pw):
+        _mining_info_uri(mining_info_uri),
+
         _driver(get_driver_instance()),
         _con(_driver->connect(db_addr, db_user, db_pw)) {
         _con->setSchema(db_name);

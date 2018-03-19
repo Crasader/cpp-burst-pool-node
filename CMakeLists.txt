@@ -43,11 +43,11 @@ include_directories(${Boost_INCLUDE_DIRS})
 add_library(burstmath burstmath.c mshabal_sse4.c mshabal256_avx2.c shabal64.s)
 
 add_library(wallet Wallet.cpp)
-target_link_libraries(wallet ${Boost_LIBRARIES} PocoNet PocoUtil
-  PocoFoundation PocoJSON pthread burstmath mysqlcppconn)
+target_link_libraries(wallet ${Boost_LIBRARIES} PocoUtil
+  PocoFoundation PocoJSON pthread burstmath mysqlcppconn curlpp curl)
 
 add_library(deadline_request_handler DeadlineRequestHandler.cpp)
-target_link_libraries(deadline_request_handler ${Boost_LIBRARIES} PocoUtil ${CMAKE_THREAD_LIBS_INIT} burstmath)
+target_link_libraries(deadline_request_handler ${Boost_LIBRARIES} PocoUtil ${CMAKE_THREAD_LIBS_INIT} burstmath PocoNet)
 
 add_library(node_com_client nodecom.grpc.pb.cc nodecom.pb.cc)
 target_link_libraries(node_com_client grpc grpc++_unsecure protobuf)
