@@ -1,8 +1,3 @@
-#include <Poco/Net/HTTPRequest.h>
-#include <Poco/Net/HTTPResponse.h>
-#include <Poco/StreamCopier.h>
-#include <Poco/Path.h>
-#include <Poco/Exception.h>
 #include <iostream>
 #include <chrono>
 #include "Wallet.hpp"
@@ -11,10 +6,7 @@
 #include <stdio.h>
 #include <curlpp/cURLpp.hpp>
 #include <curlpp/Options.hpp>
-
-using namespace Poco::Net;
-using namespace Poco;
-using namespace std;
+#include <rapidjson/document.h>
 
 std::string Wallet::get_mining_info() {
     curlpp::Cleanup myCleanup;
@@ -24,37 +16,30 @@ std::string Wallet::get_mining_info() {
 }
 
 void Wallet::refresh_block() {
-    while (1) {
-        Poco::JSON::Parser parser;
-        std::string mining_info = get_mining_info();
-
-        Poco::JSON::Object::Ptr root;
-        try {
-            root = parser.parse(mining_info).extract<Poco::JSON::Object::Ptr>();
-        } catch(Exception &ex) {
-            cerr << ex.displayText() << endl;
-            boost::this_thread::sleep_for(boost::chrono::seconds(1));
-            continue;
-        }
-
+    for (;;) {
         uint64_t height, base_target;
         std::string gensig_str;
-        if (root->has("height")) {
-            height = (uint64_t) root->get("height");
-        } else {
-            return;
-        }
+        rapidjson::Document document;
+        std::string mining_info = get_mining_info();
 
-        if (root->has("baseTarget")) {
-            base_target = (uint64_t) root->get("baseTarget");
-        } else {
-            return;
-        }
+        try {
+            document.Parse(mining_info.c_str());
+            assert(document.IsObject());
 
-        if (root->has("generationSignature")) {
-            gensig_str = root->get("generationSignature").convert<std::string>();
-        } else {
-            return;
+            assert(document.HasMember("generationSignature"));
+            assert(document.HasMember("height"));
+            assert(document.HasMember("baseTarget"));
+
+            assert(document["generationSignature"].IsString());
+            assert(document["height"].IsString());
+            assert(document["baseTarget"].IsString());
+
+            height = std::stoull(document["height"].GetString());
+            base_target = std::stoull(document["baseTarget"].GetString());
+            gensig_str = document["generationSignature"].GetString();
+        } catch (const std::exception &e) {
+            boost::this_thread::sleep_for(boost::chrono::seconds(1));
+            continue;
         }
 
         Block current_block;
@@ -70,12 +55,10 @@ void Wallet::refresh_block() {
                 pos += 2;
             }
 
-            _current_block_mu.writeLock();
             _current_block._height = height;
             _current_block._base_target = base_target;
             _current_block._gensig = gensig;
             _current_block._scoop = calculate_scoop(height, (uint8_t *) &gensig[0]);
-            _current_block_mu.unlock();
 
             int i = _cache_idx.load();
             if (i == 0) {
@@ -92,12 +75,11 @@ void Wallet::refresh_block() {
 }
 
 void Wallet::get_current_block(Block &block) {
-    _current_block_mu.readLock();
+    boost::upgrade_lock<boost::shared_mutex> lock(_new_block_mu);
     block._height = _current_block._height;
     block._base_target = _current_block._base_target;
     block._gensig = _current_block._gensig;
     block._scoop = _current_block._scoop;
-    _current_block_mu.unlock();
 }
 
 std::string Wallet::get_cached_mining_info() {

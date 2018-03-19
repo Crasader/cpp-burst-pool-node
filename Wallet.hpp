@@ -1,15 +1,10 @@
 #pragma once 
 
-#include <Poco/Net/HTTPClientSession.h>
-#include <Poco/Net/HTTPRequest.h>
 #include <boost/chrono.hpp>
 #include <boost/thread/thread.hpp> 
 #include <string>
 #include <stdint.h>
 #include <atomic>
-#include <Poco/URI.h>
-#include <Poco/JSON/Parser.h>
-#include "Poco/RWLock.h"
 #include "mysql_connection.h"
 #include <cppconn/driver.h>
 #include <cppconn/statement.h>
@@ -18,7 +13,7 @@
 
 class Block {
 public:
-    Block(const Poco::UInt64 height, const Poco::UInt64 base_target):
+    Block(const uint64_t height, const uint64_t base_target):
         _height(height),
         _base_target(base_target) {}
     Block(Block &other);
@@ -36,7 +31,6 @@ private:
     boost::thread* _refresh_block_thread;
 
     Block _current_block;
-    Poco::RWLock _current_block_mu;
 
     std::string get_mining_info();
     void refresh_block();

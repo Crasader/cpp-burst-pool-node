@@ -93,7 +93,7 @@ void handle_req(FCGX_Request *req) {
             account_id, nonce, current_block._base_target, current_block._scoop,
            (uint8_t *) &current_block._gensig[0]);
 
-        if (deadline > cfg->deadline_limit) {
+        if (deadline > cfg->_deadline_limit) {
             write_error(req->out, 1008, "Deadline exceeds deadline limit of the pool");
             return;
         }
@@ -132,9 +132,9 @@ int main() {
     sock = FCGX_OpenSocket(":8000", 0);
 
     cfg = new Config("config.json");
-    wallet = new Wallet(Poco::URI("http://176.9.47.157:6876/burst?requestType=getMiningInfo"),
-                        "localhost:3306", cfg->db_name, cfg->db_user, cfg->db_password);
-    node_com_client = new NodeComClient(grpc::CreateChannel(cfg->pool_address,
+    wallet = new Wallet("http://176.9.47.157:6876/burst?requestType=getMiningInfo",
+                        "localhost:3306", cfg->_db_name, cfg->_db_user, cfg->_db_password);
+    node_com_client = new NodeComClient(grpc::CreateChannel(cfg->_pool_address,
                                                             grpc::InsecureChannelCredentials()));
 
     for (int i = 0; i < thread_count; i++) {

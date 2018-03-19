@@ -1,12 +1,8 @@
-#include <Poco/JSON/Parser.h>
-#include <Poco/Exception.h>
+#include <rapidjson/document.h>
 #include <string>
 #include <iostream>
 #include <fstream>
 #include <stdint.h>
-
-using namespace Poco;
-using namespace std;
 
 class Config {
 public:
@@ -14,110 +10,64 @@ public:
         std::ifstream config_file(cfg_file);
         std::string config_str((std::istreambuf_iterator<char>(config_file)),
                                std::istreambuf_iterator<char>());
+        rapidjson::Document document;
 
-        Poco::JSON::Parser parser;
-        Poco::JSON::Object::Ptr root;
+        document.Parse(config_str.c_str());
+        assert(document.IsObject());
 
-        try {
-            root = parser.parse(config_str).extract<Poco::JSON::Object::Ptr>();
-        } catch(Exception &ex) {
-            cerr << ex.displayText() << endl;
-            return;
-        }
+        assert(document.HasMember("secret"));
+        assert(document["secret"].IsString());
+        _secret = document["secret"].GetString();
 
-        if (root->has("secret")) {
-            secret = root->get("secret").convert<std::string>();
-        } else {
-            cerr << "missing 'secret' in config" << std::endl;
-            exit(EXIT_FAILURE);
-            return;
-        }
+        assert(document.HasMember("deadlineLimit"));
+        assert(document["deadlineLimit"].IsUint64());
+        _deadline_limit = document["deadlineLimit"].GetUint64();
 
-        if (root->has("deadlineLimit")) {
-            deadline_limit = (uint64_t) root->get("deadlineLimit");
-        } else {
-            cerr << "missing 'deadline_limit' in config" << std::endl;
-            exit(EXIT_FAILURE);
-            return;
-        }
+        assert(document.HasMember("listenAddress"));
+        assert(document["listenAddress"].IsString());
+        _listen_address = document["listenAddress"].GetString();
 
-        if (root->has("listenAddress")) {
-            listen_address = root->get("listenAddress").convert<std::string>();
-        } else {
-            cerr << "missing 'listenAddress' in config" << std::endl;
-            exit(EXIT_FAILURE);
-            return;
-        }
+        assert(document.HasMember("listenPort"));
+        assert(document["listenPort"].IsInt());
+        _listen_port = document["listenPort"].GetInt();
 
-        if (root->has("listenPort")) {
-            listen_port = (uint16_t) root->get("listenPort");
-        } else {
-            cerr << "missing 'listenPort' in config" << std::endl;
-            exit(EXIT_FAILURE);
-            return;
-        }
+        assert(document.HasMember("poolPublicId"));
+        assert(document["poolPublicId"].IsUint64());
+        _pool_public_id = document["poolPublicId"].GetUint64();
 
-        if (root->has("poolPublicId")) {
-            pool_public_id = (uint64_t) root->get("poolPublicId");
-        } else {
-            cerr << "missing 'poolPublicId' in config" << std::endl;
-            exit(EXIT_FAILURE);
-            return;
-        }
+        assert(document.HasMember("poolAddress"));
+        assert(document["poolAddress"].IsString());
+        _pool_address = document["poolAddress"].GetString();
 
-        if (root->has("poolAddress")) {
-            pool_address = root->get("poolAddress").convert<std::string>();
-        } else {
-            cerr << "missing 'poolAddress' in config" << std::endl;
-            exit(EXIT_FAILURE);
-            return;
-        }
+        assert(document.HasMember("dbAddress"));
+        assert(document["dbAddress"].IsString());
+        _db_address = document["dbAddress"].GetString();
 
-        if (root->has("dbAddress")) {
-            db_address = root->get("dbAddress").convert<std::string>();
-        } else {
-            cerr << "missing 'dbAddress' in config" << std::endl;
-            exit(EXIT_FAILURE);
-            return;
-        }
+        assert(document.HasMember("dbName"));
+        assert(document["dbName"].IsString());
+        _db_name = document["dbName"].GetString();
 
-        if (root->has("dbName")) {
-            db_name = root->get("dbName").convert<std::string>();
-        } else {
-            cerr << "missing 'dbName' in config" << std::endl;
-            exit(EXIT_FAILURE);
-            return;
-        }
+        assert(document.HasMember("dbUser"));
+        assert(document["dbUser"].IsString());
+        _db_user = document["dbUser"].GetString();
 
-        if (root->has("dbUser")) {
-            db_user = root->get("dbUser").convert<std::string>();
-        } else {
-            cerr << "missing 'dbUser' in config" << std::endl;
-            exit(EXIT_FAILURE);
-            return;
-        }
-
-        if (root->has("dbPassword")) {
-            db_password = root->get("dbPassword").convert<std::string>();
-        } else {
-            cerr << "missing 'dbPassword' in config" << std::endl;
-            exit(EXIT_FAILURE);
-            return;
-        }
+        assert(document.HasMember("dbPassword"));
+        assert(document["dbPassword"].IsString());
+        _db_password = document["dbPassword"].GetString();
     };
 
-    std::string secret;
+    std::string _secret;
 
-    uint64_t deadline_limit;
+    uint64_t _deadline_limit;
 
-    std::string listen_address;
-    uint16_t listen_port;
+    std::string _listen_address;
+    uint16_t _listen_port;
 
-    uint64_t pool_public_id;
-    std::string pool_address;
+    uint64_t _pool_public_id;
+    std::string _pool_address;
 
-    std::string db_address;
-    std::string db_name;
-    std::string db_user;
-    std::string db_password;
+    std::string _db_address;
+    std::string _db_name;
+    std::string _db_user;
+    std::string _db_password;
 };
