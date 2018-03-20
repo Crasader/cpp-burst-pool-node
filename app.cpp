@@ -100,7 +100,7 @@ void handle_req(FCGX_Request *req) {
 
         auto miner_round = wallet->get_miner_round(account_id);
 
-        if (miner_round->mu.try_lock()) {
+        if (miner_round != nullptr && miner_round->mu.try_lock()) {
             if (miner_round->height == current_block._height && miner_round->deadline > deadline) {
                 nodecom::SubmitNonceRequest req;
                 req.set_accountid(account_id);
