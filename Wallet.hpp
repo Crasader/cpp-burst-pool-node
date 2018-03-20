@@ -9,7 +9,9 @@
 #include <cppconn/driver.h>
 #include <cppconn/statement.h>
 #include <array>
-#include <unordered_set>
+#include <unordered_map>
+#include <memory>
+#include <mutex>
 
 class Block {
 public:
@@ -26,14 +28,21 @@ public:
     std::array<uint8_t, 32> _gensig;
 };
 
+typedef struct MinerRound {
+    std::mutex mu;
+    int64_t deadline;
+    int64_t height;
+} MinerRound;
+
 class Wallet {
 private:
-    boost::thread* _refresh_block_thread;
+    boost::thread* _refresh_blocks_thread;
 
     Block _current_block;
 
     std::string get_mining_info();
-    void refresh_block();
+    void refresh_blocks();
+    bool refresh_block();
 
     std::atomic<int> _cache_idx;
     std::string _mining_info_0;
@@ -44,11 +53,11 @@ private:
     sql::Statement *_reward_recip_stmt;
 
     boost::shared_mutex _new_block_mu;
-    std::unordered_set<uint64_t> _recipients;
+    std::unordered_map<uint64_t, std::shared_ptr<MinerRound>> _miners;
 
     const std::string _mining_info_uri;
 
-    void cache_reward_recipients();
+    void cache_miners(uint64_t height);
 public:
     Wallet(const std::string mining_info_uri, std::string db_addr, std::string db_name,
            std::string db_user, std::string db_pw):
@@ -59,17 +68,21 @@ public:
         _con->setSchema(db_name);
         _reward_recip_stmt = _con->createStatement();
 
-        cache_reward_recipients();
+        bool refreshed = refresh_block();
+        assert(refreshed);
 
-        _refresh_block_thread = new boost::thread(boost::bind(&Wallet::refresh_block, this));
-        _refresh_block_thread->detach();
+        cache_miners(_current_block._height);
+
+        _refresh_blocks_thread = new boost::thread(boost::bind(&Wallet::refresh_blocks, this));
+        _refresh_blocks_thread->detach();
     }
 
     ~Wallet() {
-        _refresh_block_thread->interrupt();
+        _refresh_blocks_thread->interrupt();
     }
         
     void get_current_block(Block &block);
     std::string get_cached_mining_info();
+    std::shared_ptr<MinerRound> get_miner_round(uint64_t account_id);
     bool correct_reward_recipient(uint64_t account_id);
 };

@@ -98,6 +98,21 @@ void handle_req(FCGX_Request *req) {
             return;
         }
 
+        auto miner_round = wallet->get_miner_round(account_id);
+
+        if (miner_round->mu.try_lock()) {
+            if (miner_round->height == current_block._height && miner_round->deadline > deadline) {
+                nodecom::SubmitNonceRequest req;
+                req.set_accountid(account_id);
+                req.set_nonce(nonce);
+                req.set_deadline(deadline);
+                req.set_blockheight(current_block._height);
+                node_com_client->SubmitNonce(req);
+                miner_round->deadline = deadline;
+            }
+            miner_round->mu.unlock();
+        }
+
         write_submission_success(req->out, deadline);
     }
 }
