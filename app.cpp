@@ -133,7 +133,7 @@ void accept_reqs() {
 
         server_name = FCGX_GetParam("SERVER_NAME", req.envp);
 
-        // TODO: probably better sleep? what hapens if nginx restarts?
+        // TODO: probably better sleep? what happens if nginx restarts?
         if (rc < 0)
             break;
 
