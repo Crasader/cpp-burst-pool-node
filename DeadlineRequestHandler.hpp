@@ -1,11 +1,10 @@
 #pragma once 
 
-#include <condition_variable>
+#include <evhtp.h>
 #include <memory>
 #include <stdint.h>
 #include <boost/thread/thread.hpp>
 #include <boost/asio/io_service.hpp>
-#include <mutex>
 #include <array>
 #include "concurrentqueue.h"
 
@@ -16,9 +15,7 @@ struct CalcDeadlineReq {
     uint32_t scoop_nr;
     uint64_t base_target;
     uint8_t *gensig;
-    bool processed = false;
-    std::condition_variable cv;
-    std::mutex mu;
+    evhtp_request_t *req;
 };
 
 class DeadlineRequestHandler {
@@ -32,7 +29,6 @@ private:
 
     boost::thread* _distribute_thread;
 
-    void add_req(CalcDeadlineReq *req);
 public:
     DeadlineRequestHandler(int validator_threads = boost::thread::hardware_concurrency())
         : _work(_io_service) {
@@ -47,6 +43,6 @@ public:
         _distribute_thread->interrupt();
     }
 
-    uint64_t calculate_deadline(uint64_t account_id, uint64_t nonce, uint64_t base_target,
-                                uint32_t scoop_nr, uint8_t *gensig);
+    void calculate_deadline(uint64_t account_id, uint64_t nonce, uint64_t base_target,
+                            uint32_t scoop_nr, uint8_t *gensig, evhtp_request_t *req);
 };
