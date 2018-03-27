@@ -39,14 +39,14 @@ private:
     void validate_deadline(std::shared_ptr<CalcDeadlineReq> creq, uint64_t deadline);
     void calculate_deadlines(std::array<std::shared_ptr<CalcDeadlineReq>, 8> creqs, int pending);
 public:
-    DeadlineRequestHandler(Config *cfg, Wallet *wallet, int validator_threads = boost::thread::hardware_concurrency())
+    DeadlineRequestHandler(Config *cfg, Wallet *wallet)
         : _cfg(cfg),
           _wallet(wallet),
           _work(_io_service) {
         _node_com_client = new NodeComClient(grpc::CreateChannel(cfg->_pool_address,
                                                                  grpc::InsecureChannelCredentials()));
 
-        for (int i = 0; i < validator_threads; i++)
+        for (int i = 0; i < cfg->_validator_thread_count; i++)
             _threadpool.create_thread(boost::bind(&boost::asio::io_service::run, &_io_service));
 
         _distribute_thread = new boost::thread(boost::bind(&DeadlineRequestHandler::distribute_deadline_reqs, this));

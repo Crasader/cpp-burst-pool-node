@@ -9,5 +9,7 @@
     "dbName": "testburstwallet",
     "dbUser": "root",
     "dbPassword": "",
-    "poolAddress": "localhost:50051"
+    "poolAddress": "localhost:50051",
+    "validatorThreadCount": 8,
+    "connectionThreadCount": 2
 }

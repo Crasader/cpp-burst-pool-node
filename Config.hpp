@@ -55,6 +55,14 @@ public:
         assert(document.HasMember("dbPassword"));
         assert(document["dbPassword"].IsString());
         _db_password = document["dbPassword"].GetString();
+
+        assert(document.HasMember("connectionThreadCount"));
+        assert(document["connectionThreadCount"].IsInt());
+        _connection_thread_count = document["connectionThreadCount"].GetInt();
+
+        assert(document.HasMember("validatorThreadCount"));
+        assert(document["validatorThreadCount"].IsInt());
+        _validator_thread_count = document["validatorThreadCount"].GetInt();
     };
 
     std::string _secret;
@@ -71,4 +79,7 @@ public:
     std::string _db_name;
     std::string _db_user;
     std::string _db_password;
+
+    int _validator_thread_count;
+    int _connection_thread_count;
 };
