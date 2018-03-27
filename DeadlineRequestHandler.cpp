@@ -55,7 +55,6 @@ void DeadlineRequestHandler::validate_deadline(std::shared_ptr<CalcDeadlineReq> 
         miner_round->mu.unlock();
     }
 
-    std::cout << creq->req->buffer_out << std::endl;
     evbuffer_add_printf(creq->req->buffer_out, "{\"result\":\"success\",\"deadline\":%lu}", deadline);
     evhtp_send_reply(creq->req, EVHTP_RES_OK);
     evhtp_request_resume(creq->req);
