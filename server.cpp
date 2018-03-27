@@ -71,9 +71,9 @@ void process_submit_nonce_req(evhtp_request_t *req) {
     calc_deadline_req->height = current_block._height;
     calc_deadline_req->req = req;
 
-    evhtp_request_pause(req);
-
     deadline_request_handler->enque_req(calc_deadline_req);
+
+    evhtp_request_pause(req);
 }
 
 void process_get_mining_info_request(evhtp_request_t *req) {
