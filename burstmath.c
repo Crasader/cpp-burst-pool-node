@@ -163,8 +163,7 @@ calculate_deadlines_avx2(
           uint64_t nonce1, uint64_t nonce2, uint64_t nonce3, uint64_t nonce4,
           uint64_t nonce5, uint64_t nonce6, uint64_t nonce7, uint64_t nonce8,
 
-          uint64_t *deadline1, uint64_t *deadline2, uint64_t *deadline3, uint64_t*deadline4,
-          uint64_t *deadline5, uint64_t *deadline6, uint64_t *deadline7, uint64_t *deadline8) {
+          uint64_t deadlines[8]) {
     char final1[32], final2[32], final3[32], final4[32];
     char final5[32], final6[32], final7[32], final8[32];
     char gendata1[16 + NONCE_SIZE], gendata2[16 + NONCE_SIZE], gendata3[16 + NONCE_SIZE], gendata4[16 + NONCE_SIZE];
@@ -291,14 +290,14 @@ calculate_deadlines_avx2(
     uint64_t target_result7 = *(uint64_t *)final77;
     uint64_t target_result8 = *(uint64_t *)final88;
 
-    *deadline1 = target_result1 / base_target1;
-    *deadline2 = target_result2 / base_target2;
-    *deadline3 = target_result3 / base_target3;
-    *deadline4 = target_result4 / base_target4;
-    *deadline5 = target_result5 / base_target5;
-    *deadline6 = target_result6 / base_target6;
-    *deadline7 = target_result7 / base_target7;
-    *deadline8 = target_result8 / base_target8;
+    deadlines[0] = target_result1 / base_target1;
+    deadlines[1] = target_result2 / base_target2;
+    deadlines[2] = target_result3 / base_target3;
+    deadlines[3] = target_result4 / base_target4;
+    deadlines[4] = target_result5 / base_target5;
+    deadlines[5] = target_result6 / base_target6;
+    deadlines[6] = target_result7 / base_target7;
+    deadlines[7] = target_result8 / base_target8;
 }
 
 #ifdef  __cplusplus

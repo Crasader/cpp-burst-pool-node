@@ -53,9 +53,6 @@ target_link_libraries(deadline_request_handler ${Boost_LIBRARIES} ${CMAKE_THREAD
 add_library(node_com_client nodecom.grpc.pb.cc nodecom.pb.cc)
 target_link_libraries(node_com_client grpc grpc++_unsecure protobuf)
 
-# add_executable(app app.cpp)
-# target_link_libraries(app fcgi++ fcgi ${CMAKE_THREAD_LIBS_INIT} wallet deadline_request_handler node_com_client)
-
 add_executable(server server.cpp)
 target_link_libraries(server
   event

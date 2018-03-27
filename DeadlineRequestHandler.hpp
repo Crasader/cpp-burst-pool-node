@@ -7,14 +7,17 @@
 #include <boost/asio/io_service.hpp>
 #include <array>
 #include "concurrentqueue.h"
+#include "Wallet.hpp"
+#include "Config.hpp"
+#include "NodeComClient.hpp"
 
 struct CalcDeadlineReq {
     uint64_t account_id;
     uint64_t nonce;
-    uint64_t deadline;
+    uint64_t height;
     uint32_t scoop_nr;
     uint64_t base_target;
-    uint8_t *gensig;
+    std::array<uint8_t, 32> gensig;
     evhtp_request_t *req;
 };
 
@@ -22,16 +25,27 @@ class DeadlineRequestHandler {
 private:
     void distribute_deadline_reqs();
 
-    moodycamel::ConcurrentQueue<CalcDeadlineReq *> _q;
+    moodycamel::ConcurrentQueue<std::shared_ptr<CalcDeadlineReq> > _q;
     boost::asio::io_service _io_service;
     boost::asio::io_service::work _work;
     boost::thread_group _threadpool;
 
-    boost::thread* _distribute_thread;
+    boost::thread *_distribute_thread;
 
+    Wallet *_wallet;
+    Config *_cfg;
+    NodeComClient *_node_com_client;
+
+    void validate_deadline(std::shared_ptr<CalcDeadlineReq> creq, uint64_t deadline);
+    void calculate_deadlines(std::array<std::shared_ptr<CalcDeadlineReq>, 8> creqs, int pending);
 public:
-    DeadlineRequestHandler(int validator_threads = boost::thread::hardware_concurrency())
-        : _work(_io_service) {
+    DeadlineRequestHandler(Config *cfg, Wallet *wallet, int validator_threads = boost::thread::hardware_concurrency())
+        : _cfg(cfg),
+          _wallet(wallet),
+          _work(_io_service) {
+        _node_com_client = new NodeComClient(grpc::CreateChannel(cfg->_pool_address,
+                                                                 grpc::InsecureChannelCredentials()));
+
         for (int i = 0; i < validator_threads; i++)
             _threadpool.create_thread(boost::bind(&boost::asio::io_service::run, &_io_service));
 
@@ -43,6 +57,5 @@ public:
         _distribute_thread->interrupt();
     }
 
-    void calculate_deadline(uint64_t account_id, uint64_t nonce, uint64_t base_target,
-                            uint32_t scoop_nr, uint8_t *gensig, evhtp_request_t *req);
+    void enque_req(std::shared_ptr<CalcDeadlineReq> calc_deadline_req);
 };
