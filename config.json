@@ -11,5 +11,7 @@
     "dbPassword": "",
     "poolAddress": "localhost:50051",
     "validatorThreadCount": 8,
-    "connectionThreadCount": 2
+    "connectionThreadCount": 2,
+    "allowRequestsPerSecond": 4.0,
+    "burstSize": 5.0
 }

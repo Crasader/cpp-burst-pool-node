@@ -5,9 +5,11 @@
 #include "Wallet.hpp"
 #include "Config.hpp"
 #include "DeadlineRequestHandler.hpp"
+#include "RateLimiter.hpp"
 
 Wallet *wallet;
 Config *cfg;
+RateLimiter *rate_limiter;
 DeadlineRequestHandler *deadline_request_handler;
 
 void process_submit_nonce_req(evhtp_request_t *req) {
@@ -82,8 +84,19 @@ void process_get_mining_info_request(evhtp_request_t *req) {
     evhtp_send_reply(req, EVHTP_RES_OK);
 }
 
+bool limited(evhtp_request_t * req,  const char *request_type) {
+    std::string limiter_key = get_ip(req);
+    limiter_key.append(request_type);
+    if (!rate_limiter->aquire(limiter_key)) {
+        evhtp_send_reply(req, 429);
+        return true;
+    }
+    return false;
+}
+
 void process_req(evhtp_request_t *req, void *a) {
     evhtp_query_t *query = req->uri->query;
+
     if (query == nullptr) {
         evhtp_send_reply(req, EVHTP_RES_BADREQ);
         return;
@@ -96,9 +109,11 @@ void process_req(evhtp_request_t *req, void *a) {
     }
 
     if (strcmp(request_type, "getMiningInfo") == 0 ) {
+        if (limited(req, request_type)) return;
         process_get_mining_info_request(req);
         return;
     } else if (strcmp(request_type, "submitNonce") == 0 ) {
+        if (limited(req, request_type)) return;
         process_submit_nonce_req(req);
         return;
     }
@@ -113,6 +128,8 @@ int main(int argc, char ** argv) {
     cfg = new Config("config.json");
     wallet = new Wallet("http://176.9.47.157:6876/burst?requestType=getMiningInfo",
                         "localhost:3306", cfg->_db_name, cfg->_db_user, cfg->_db_password);
+
+    rate_limiter = new RateLimiter(cfg->_allow_requests_per_second, cfg->_burst_size);
 
     deadline_request_handler = new DeadlineRequestHandler(cfg, wallet);
 

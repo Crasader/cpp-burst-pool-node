@@ -63,6 +63,14 @@ public:
         assert(document.HasMember("validatorThreadCount"));
         assert(document["validatorThreadCount"].IsInt());
         _validator_thread_count = document["validatorThreadCount"].GetInt();
+
+        assert(document.HasMember("allowRequestsPerSecond"));
+        assert(document["allowRequestsPerSecond"].IsDouble());
+        _allow_requests_per_second = document["allowRequestsPerSecond"].GetDouble();
+
+        assert(document.HasMember("burstSize"));
+        assert(document["burstSize"].IsDouble());
+        _burst_size = document["burstSize"].GetDouble();
     };
 
     std::string _secret;
@@ -82,4 +90,7 @@ public:
 
     int _validator_thread_count;
     int _connection_thread_count;
+
+    double _allow_requests_per_second;
+    double _burst_size;
 };
