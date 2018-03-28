@@ -138,7 +138,7 @@ int main(int argc, char ** argv) {
 
     evhtp_set_cb(evhtp, "/burst", process_req, nullptr);
     evhtp_use_threads(evhtp, nullptr, cfg->_connection_thread_count, nullptr);
-    evhtp_bind_socket(evhtp, "127.0.0.1", 8124, 1024);
+    evhtp_bind_socket(evhtp, cfg->_listen_address.c_str(), cfg->_listen_port, 1024);
 
     event_base_loop(evbase, 0);
 
