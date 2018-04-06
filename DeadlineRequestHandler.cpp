@@ -1,10 +1,9 @@
 #include "DeadlineRequestHandler.hpp"
 #include <iostream>
 #include "burstmath.h"
-#include "server.hpp"
 
 void DeadlineRequestHandler::enque_req(std::shared_ptr<CalcDeadlineReq> calc_deadline_req) {
-    _q.enqueue(calc_deadline_req);
+    q_.enqueue(calc_deadline_req);
 }
 
 void DeadlineRequestHandler::calculate_deadlines(std::array<std::shared_ptr<CalcDeadlineReq>, 8> creqs, int pending) {
@@ -35,12 +34,11 @@ void DeadlineRequestHandler::calculate_deadlines(std::array<std::shared_ptr<Calc
 }
 
 void DeadlineRequestHandler::validate_deadline(std::shared_ptr<CalcDeadlineReq> creq, uint64_t deadline) {
-    if (deadline > _cfg->_deadline_limit) {
-        write_error(creq->req, 1008, "Deadline exceeds deadline limit of the pool");
-        evhtp_request_resume(creq->req);
-        return;
+    if (deadline > deadline_limit_) {
+      creq->session->writeJSONError(1008,  "Deadline exceeds deadline limit of the pool");
+      return;
     }
-    auto miner_round = _wallet->get_miner_round(creq->account_id);
+    auto miner_round = wallet_->get_miner_round(creq->account_id);
 
     if (miner_round != nullptr && miner_round->mu.try_lock()) {
         if (miner_round->height == creq->height && miner_round->deadline > deadline) {
@@ -49,15 +47,14 @@ void DeadlineRequestHandler::validate_deadline(std::shared_ptr<CalcDeadlineReq> 
             req.set_nonce(creq->nonce);
             req.set_deadline(deadline);
             req.set_blockheight(creq->height);
-            _node_com_client->SubmitNonce(req);
+            node_com_client_->SubmitNonce(req);
             miner_round->deadline = deadline;
         }
         miner_round->mu.unlock();
     }
 
-    evbuffer_add_printf(creq->req->buffer_out, "{\"result\":\"success\",\"deadline\":%lu}", deadline);
-    evhtp_send_reply(creq->req, EVHTP_RES_OK);
-    evhtp_request_resume(creq->req);
+    std::string msg = "{\"result\":\"success\",\"deadline\":" + std::to_string(deadline) + "}";
+    creq->session->write_ok(msg);
 }
 
 void DeadlineRequestHandler::distribute_deadline_reqs() {
@@ -72,13 +69,13 @@ void DeadlineRequestHandler::distribute_deadline_reqs() {
     int waited = 0;
     for (;;) {
         if (pending == 8 || (pending > 0 && waited > 1000)) {
-            _io_service.post(boost::bind(&DeadlineRequestHandler::calculate_deadlines, this, reqs, pending));
+            io_service_.post(boost::bind(&DeadlineRequestHandler::calculate_deadlines, this, reqs, pending));
             pending = 0;
             waited = 0;
         }
 
         std::shared_ptr<CalcDeadlineReq> req;
-        bool found = _q.try_dequeue(reqs[pending]);
+        bool found = q_.try_dequeue(reqs[pending]);
         if (!found) {
             waited++;
             usleep(1000);

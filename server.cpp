@@ -1,147 +1,264 @@
-#include <regex>
+//
+// Copyright (c) 2016-2017 Vinnie Falco (vinnie dot falco at gmail dot com)
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+//
+// Official repository: https://github.com/boostorg/beast
+//
+
+//------------------------------------------------------------------------------
+//
+// Example: HTTP server, asynchronous
+//
+//------------------------------------------------------------------------------
+
+#include <boost/beast/core.hpp>
+#include <boost/beast/http.hpp>
+#include <boost/beast/version.hpp>
+#include <boost/asio/bind_executor.hpp>
+#include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/strand.hpp>
+#include <boost/config.hpp>
+#include <algorithm>
+#include <cstdlib>
+#include <functional>
 #include <iostream>
-#include <string.h>
-#include "server.hpp"
-#include "Wallet.hpp"
-#include "Config.hpp"
-#include "DeadlineRequestHandler.hpp"
-#include "RateLimiter.hpp"
+#include <memory>
+#include <string>
+#include <thread>
+#include <vector>
 
-Wallet *wallet;
-Config *cfg;
-RateLimiter *rate_limiter;
-DeadlineRequestHandler *deadline_request_handler;
+using tcp = boost::asio::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
+namespace http = boost::beast::http;    // from <boost/beast/http.hpp>
 
-void process_submit_nonce_req(evhtp_request_t *req) {
-    uint64_t account_id, nonce, height;
-    evhtp_query_t *query = req->uri->query;
+// This function produces an HTTP response for the given
+// request. The type of the response object depends on the
+// contents of the request, so the interface requires the
+// caller to pass a generic lambda for receiving the response.
+template<
+    class Send>
+void handle_request(http::request<http::string_body>&& req, Send&& send) {
+    // Returns a bad request response
+    auto const bad_request =
+    [&req](boost::beast::string_view why)
+    {
+        http::response<http::string_body> res{http::status::bad_request, req.version()};
+        res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
+        res.set(http::field::content_type, "text/html");
+        res.keep_alive(req.keep_alive());
+        res.body() = why.to_string();
+        res.prepare_payload();
+        return res;
+    };
 
-    const char *account_id_str = evhtp_kv_find(query, "accountId");
-    if (account_id_str == nullptr) {
-        write_error(req, 1013, "sumitNonce request has bad 'accountId' parameter");
-        return;
-    }
-    try {
-        account_id = std::stoull(account_id_str);
-    } catch (const std::exception &e) {
-        write_error(req, 1013, "sumitNonce request has bad 'accountId' parameter");
-        return;
-    }
-    
-    const char *nonce_str = evhtp_kv_find(query, "nonce");
-    if (nonce_str == nullptr) {
-        write_error(req, 1012, "sumitNonce request has bad 'nonce' parameter");
-        return;
-    }
-    try {
-        nonce = std::stoull(nonce_str);
-    } catch (const std::exception &e) {
-        write_error(req, 1012, "sumitNonce request has bad 'nonce' parameter");
-        return;
-    }
-
-    Block current_block;
-    wallet->get_current_block(current_block);
-    const char *height_str = evhtp_kv_find(query, "blockheight");
-    if (height_str == nullptr) {
-        goto SKIP_BLOCK_CONFIRMATION;
-    }
-    try {
-        height = std::stoull(height_str);
-    } catch (const std::exception &e) {
-        goto SKIP_BLOCK_CONFIRMATION;
-    }
-    if (height != current_block._height) {
-        write_error(req, 1005, "Submitted on wrong height");
-        return;
-    }
-
- SKIP_BLOCK_CONFIRMATION:
-
-    if (!wallet->correct_reward_recipient(account_id)) {
-        write_error(req, 1004, "Account's reward recipient doesn't match the pool's");
-        return;
-    }
-
-    // calculate deadline and answer with worker threads
-    std::shared_ptr<CalcDeadlineReq> calc_deadline_req(new CalcDeadlineReq);
-    calc_deadline_req->account_id = account_id;
-    calc_deadline_req->nonce = nonce;
-    calc_deadline_req->scoop_nr = current_block._scoop;
-    calc_deadline_req->base_target = current_block._base_target;
-    calc_deadline_req->gensig = current_block._gensig;
-    calc_deadline_req->height = current_block._height;
-    calc_deadline_req->req = req;
-
-    deadline_request_handler->enque_req(calc_deadline_req);
-
-    evhtp_request_pause(req);
+    return send(bad_request("lol"));
 }
 
-void process_get_mining_info_request(evhtp_request_t *req) {
-    std::string mining_info = wallet->get_cached_mining_info();
-    evbuffer_add_printf(req->buffer_out, mining_info.c_str());
-    evhtp_send_reply(req, EVHTP_RES_OK);
+void fail(boost::system::error_code ec, char const* what) {
+    std::cerr << what << ": " << ec.message() << "\n";
 }
 
-bool limited(evhtp_request_t * req,  const char *request_type) {
-    std::string limiter_key = get_ip(req);
-    limiter_key.append(request_type);
-    if (!rate_limiter->aquire(limiter_key)) {
-        evhtp_send_reply(req, 429);
-        return true;
+// Handles an HTTP server connection
+class session : public std::enable_shared_from_this<session> {
+    // This is the C++11 equivalent of a generic lambda.
+    // The function object is used to send an HTTP message.
+    struct send_lambda {
+        session& self_;
+
+        explicit send_lambda(session& self)
+            : self_(self) {}
+
+        template<bool isRequest, class Body, class Fields>
+        void operator()(http::message<isRequest, Body, Fields>&& msg) const {
+            // The lifetime of the message has to extend
+            // for the duration of the async operation so
+            // we use a shared_ptr to manage it.
+            auto sp = std::make_shared<
+                http::message<isRequest, Body, Fields>>(std::move(msg));
+
+            // Store a type-erased version of the shared
+            // pointer in the class to keep it alive.
+            self_.res_ = sp;
+
+            // Write the response
+            http::async_write(
+                self_.socket_,
+                *sp,
+                boost::asio::bind_executor(
+                    self_.strand_,
+                    std::bind(
+                        &session::on_write,
+                        self_.shared_from_this(),
+                        std::placeholders::_1,
+                        std::placeholders::_2,
+                        sp->need_eof())));
+        }
+    };
+
+    tcp::socket socket_;
+    boost::asio::strand<boost::asio::io_context::executor_type> strand_;
+    boost::beast::flat_buffer buffer_;
+    http::request<http::string_body> req_;
+    std::shared_ptr<void> res_;
+    send_lambda lambda_;
+
+public:
+    explicit session(tcp::socket socket)
+        : socket_(std::move(socket)),
+          strand_(socket_.get_executor()),
+          lambda_(*this) {}
+
+    void run() {
+        do_read();
     }
-    return false;
+
+    void do_read() {
+        // Make the request empty before reading,
+        // otherwise the operation behavior is undefined.
+        req_ = {};
+
+        // Read a request
+        http::async_read(socket_, buffer_, req_,
+            boost::asio::bind_executor(
+                strand_,
+                std::bind(
+                    &session::on_read,
+                    shared_from_this(),
+                    std::placeholders::_1,
+                    std::placeholders::_2)));
+    }
+
+    void on_read(boost::system::error_code ec, std::size_t bytes_transferred) {
+        boost::ignore_unused(bytes_transferred);
+
+        // This means they closed the connection
+        if(ec == http::error::end_of_stream)
+            return do_close();
+
+        if(ec)
+            return fail(ec, "read");
+
+        // Send the response
+        handle_request(std::move(req_), lambda_);
+    }
+
+    void on_write(boost::system::error_code ec, std::size_t bytes_transferred, bool close) {
+        boost::ignore_unused(bytes_transferred);
+
+        if(ec)
+            return fail(ec, "write");
+
+        if(close)
+            return do_close();
+
+        res_ = nullptr;
+
+        do_read();
+    }
+
+    void do_close() {
+        boost::system::error_code ec;
+        socket_.shutdown(tcp::socket::shutdown_send, ec);
+    }
+};
+
+// Accepts incoming connections and launches the sessions
+class listener : public std::enable_shared_from_this<listener> {
+    tcp::acceptor acceptor_;
+    tcp::socket socket_;
+
+public:
+    listener(boost::asio::io_context& ioc, tcp::endpoint endpoint)
+        : acceptor_(ioc),
+          socket_(ioc) {
+        boost::system::error_code ec;
+
+        // Open the acceptor
+        acceptor_.open(endpoint.protocol(), ec);
+        if(ec) {
+            fail(ec, "open");
+            return;
+        }
+
+        // Allow address reuse
+        acceptor_.set_option(boost::asio::socket_base::reuse_address(true));
+        if(ec) {
+            fail(ec, "set_option");
+            return;
+        }
+
+        // Bind to the server address
+        acceptor_.bind(endpoint, ec);
+        if(ec) {
+            fail(ec, "bind");
+            return;
+        }
+
+        // Start listening for connections
+        acceptor_.listen(boost::asio::socket_base::max_listen_connections, ec);
+        if(ec) {
+            fail(ec, "listen");
+            return;
+        }
+    }
+
+    // Start accepting incoming connections
+    void run() {
+        if(! acceptor_.is_open())
+            return;
+        do_accept();
+    }
+
+    void do_accept() {
+        acceptor_.async_accept(
+            socket_,
+            std::bind(
+                &listener::on_accept,
+                shared_from_this(),
+                std::placeholders::_1));
+    }
+
+    void on_accept(boost::system::error_code ec) {
+        if(ec) {
+            fail(ec, "accept");
+        } else {
+            // Create the session and run it
+            std::make_shared<session>(std::move(socket_))->run();
+        }
+
+        // Accept another connection
+        do_accept();
+    }
+};
+
+//------------------------------------------------------------------------------
+
+int main(int argc, char* argv[]) {
+    // Check command line arguments.
+    if (argc != 4) {
+        std::cerr <<
+            "Usage: http-server-async <address> <port> <threads>\n" <<
+            "Example:\n" <<
+            "    http-server-async 0.0.0.0 8080 . 1\n";
+        return EXIT_FAILURE;
+    }
+    auto const address = boost::asio::ip::make_address(argv[1]);
+    auto const port = static_cast<unsigned short>(std::atoi(argv[2]));
+    auto const threads = std::max<int>(1, std::atoi(argv[3]));
+
+    // The io_context is required for all I/O
+    boost::asio::io_context ioc{threads};
+
+    // Create and launch a listening port
+    std::make_shared<listener>(ioc, tcp::endpoint{address, port})->run();
+
+    // Run the I/O service on the requested number of threads
+    std::vector<std::thread> v;
+    v.reserve(threads - 1);
+    for(auto i = threads - 1; i > 0; --i)
+        v.emplace_back([&ioc] { ioc.run(); });
+    ioc.run();
+
+    return EXIT_SUCCESS;
 }
-
-void process_req(evhtp_request_t *req, void *a) {
-    evhtp_query_t *query = req->uri->query;
-
-    if (query == nullptr) {
-        evhtp_send_reply(req, EVHTP_RES_BADREQ);
-        return;
-    }
-
-    const char *request_type = evhtp_kv_find(query, "requestType");
-    if (request_type == nullptr) {
-        evhtp_send_reply(req, EVHTP_RES_BADREQ);
-        return;
-    }
-
-    if (strcmp(request_type, "getMiningInfo") == 0 ) {
-        if (limited(req, request_type)) return;
-        process_get_mining_info_request(req);
-        return;
-    } else if (strcmp(request_type, "submitNonce") == 0 ) {
-        if (limited(req, request_type)) return;
-        process_submit_nonce_req(req);
-        return;
-    }
-
-    evhtp_send_reply(req, EVHTP_RES_BADREQ);
-}
-
-int main(int argc, char ** argv) {
-    evbase_t *evbase;
-    evhtp_t *evhtp;
-
-    cfg = new Config("config.json");
-    wallet = new Wallet("http://176.9.47.157:6876/burst?requestType=getMiningInfo",
-                        "localhost:3306", cfg->_db_name, cfg->_db_user, cfg->_db_password);
-
-    rate_limiter = new RateLimiter(cfg->_allow_requests_per_second, cfg->_burst_size);
-
-    deadline_request_handler = new DeadlineRequestHandler(cfg, wallet);
-
-    evbase = event_base_new();
-    evhtp = evhtp_new(evbase, NULL);
-
-    evhtp_set_cb(evhtp, "/burst", process_req, nullptr);
-    evhtp_use_threads(evhtp, nullptr, cfg->_connection_thread_count, nullptr);
-    evhtp_bind_socket(evhtp, cfg->_listen_address.c_str(), cfg->_listen_port, 1024);
-
-    event_base_loop(evbase, 0);
-
-    return 0;
-}
-

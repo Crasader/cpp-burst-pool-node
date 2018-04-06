@@ -1,61 +1,64 @@
 #pragma once 
 
-#include <evhtp.h>
 #include <memory>
 #include <stdint.h>
 #include <boost/thread/thread.hpp>
 #include <boost/asio/io_service.hpp>
 #include <array>
+#include "Session.hpp"
 #include "concurrentqueue.h"
 #include "Wallet.hpp"
 #include "Config.hpp"
 #include "NodeComClient.hpp"
 
+class Session;
+
 struct CalcDeadlineReq {
-    uint64_t account_id;
-    uint64_t nonce;
-    uint64_t height;
-    uint32_t scoop_nr;
-    uint64_t base_target;
-    std::array<uint8_t, 32> gensig;
-    evhtp_request_t *req;
+  uint64_t account_id;
+  uint64_t nonce;
+  uint64_t height;
+  uint32_t scoop_nr;
+  uint64_t base_target;
+  std::array<uint8_t, 32> gensig;
+  std::shared_ptr<Session> session;
 };
 
 class DeadlineRequestHandler {
-private:
-    void distribute_deadline_reqs();
+ private:
+  void distribute_deadline_reqs();
 
-    moodycamel::ConcurrentQueue<std::shared_ptr<CalcDeadlineReq> > _q;
-    boost::asio::io_service _io_service;
-    boost::asio::io_service::work _work;
-    boost::thread_group _threadpool;
+  moodycamel::ConcurrentQueue<std::shared_ptr<CalcDeadlineReq> > q_;
+  boost::asio::io_service io_service_;
+  boost::asio::io_service::work work_;
+  boost::thread_group threadpool_;
 
-    boost::thread *_distribute_thread;
+  boost::thread *distribute_thread_;
 
-    Wallet *_wallet;
-    Config *_cfg;
-    NodeComClient *_node_com_client;
+  Wallet *wallet_;
+  NodeComClient *node_com_client_;
 
-    void validate_deadline(std::shared_ptr<CalcDeadlineReq> creq, uint64_t deadline);
-    void calculate_deadlines(std::array<std::shared_ptr<CalcDeadlineReq>, 8> creqs, int pending);
-public:
-    DeadlineRequestHandler(Config *cfg, Wallet *wallet)
-        : _cfg(cfg),
-          _wallet(wallet),
-          _work(_io_service) {
-        _node_com_client = new NodeComClient(grpc::CreateChannel(cfg->_pool_address,
-                                                                 grpc::InsecureChannelCredentials()));
+  uint64_t deadline_limit_;
 
-        for (int i = 0; i < cfg->_validator_thread_count; i++)
-            _threadpool.create_thread(boost::bind(&boost::asio::io_service::run, &_io_service));
+  void validate_deadline(std::shared_ptr<CalcDeadlineReq> creq, uint64_t deadline);
+  void calculate_deadlines(std::array<std::shared_ptr<CalcDeadlineReq>, 8> creqs, int pending);
+ public:
+  DeadlineRequestHandler(Config *cfg, Wallet *wallet)
+      : deadline_limit_(cfg->deadline_limit_),
+        wallet_(wallet),
+        work_(io_service_) {
+    node_com_client_ = new NodeComClient(grpc::CreateChannel(cfg->pool_address_,
+                                                             grpc::InsecureChannelCredentials()));
 
-        _distribute_thread = new boost::thread(boost::bind(&DeadlineRequestHandler::distribute_deadline_reqs, this));
-        _distribute_thread->detach();
-    };
+    for (int i = 0; i < cfg->validator_thread_count_; i++)
+      threadpool_.create_thread(boost::bind(&boost::asio::io_service::run, &io_service_));
 
-    ~DeadlineRequestHandler() {
-        _distribute_thread->interrupt();
-    }
+    distribute_thread_ = new boost::thread(boost::bind(&DeadlineRequestHandler::distribute_deadline_reqs, this));
+    distribute_thread_->detach();
+  };
 
-    void enque_req(std::shared_ptr<CalcDeadlineReq> calc_deadline_req);
+  ~DeadlineRequestHandler() {
+    distribute_thread_->interrupt();
+  }
+
+  void enque_req(std::shared_ptr<CalcDeadlineReq> calc_deadline_req);
 };

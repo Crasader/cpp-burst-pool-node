@@ -19,6 +19,8 @@ set(HEADER_FILES
   Wallet.hpp
   Config.hpp
   NodeComClient.hpp
+  Server.hpp
+  Session.hpp
   nodecom.grpc.pb.h
   nodecom.pb.h
   )
@@ -28,10 +30,11 @@ set(SOURCE_FILES
   mshabal256_sse4.c
   shabal64.s
   DeadlineRequestHandler.cpp
+  Session.cpp
   NodeComClient.cpp
   nodecom.grpc.pb.cc
   nodecom.pb.cc
-  app.cpp
+  Server.cpp
   )
 
 set_source_files_properties(mshabal256_avx2.c PROPERTIES COMPILE_FLAGS -mavx2)
@@ -39,6 +42,7 @@ set_source_files_properties(mshabal256_avx2.c PROPERTIES COMPILE_FLAGS -mavx2)
 find_package(Protobuf REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package (Threads)
+# find_package(glog REQUIRED CONFIG NAMES google-glog glog)
 find_package(Boost REQUIRED COMPONENTS system thread)
 include_directories(${Boost_INCLUDE_DIRS})
 
@@ -47,21 +51,23 @@ add_library(burstmath burstmath.c mshabal_sse4.c mshabal256_avx2.c shabal64.s)
 add_library(wallet Wallet.cpp)
 target_link_libraries(wallet ${Boost_LIBRARIES} pthread burstmath mysqlcppconn curlpp curl)
 
-add_library(deadline_request_handler DeadlineRequestHandler.cpp)
-target_link_libraries(deadline_request_handler ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} burstmath)
+# add_library(deadline_request_handler DeadlineRequestHandler.cpp Session.hpp)
+# target_link_libraries(deadline_request_handler ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} burstmath grpc)
 
 add_library(node_com_client nodecom.grpc.pb.cc nodecom.pb.cc)
 target_link_libraries(node_com_client grpc grpc++_unsecure protobuf)
 
-add_executable(server server.cpp)
+add_executable(server Server.cpp Config.hpp Wallet.cpp DeadlineRequestHandler.cpp Session.cpp Session.hpp)
 target_link_libraries(server
-  event
-  evhtp
-  event_openssl
-  event_pthreads
-  ${OPENSSL_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
+  ${Boost_LIBRARIES} 
+  glog
   wallet
-  deadline_request_handler
+  burstmath
+  grpc
+  grpc++_unsecure
+  protobuf
   node_com_client
   )
+
+
