@@ -7,6 +7,7 @@
 #include <boost/asio/strand.hpp>
 #include "Wallet.hpp"
 #include "DeadlineRequestHandler.hpp"
+#include "RateLimiter.hpp"
 
 class DeadlineRequestHandler;
 
@@ -21,12 +22,14 @@ class Session : public std::enable_shared_from_this<Session> {
   std::shared_ptr<void> res_;
   Wallet* wallet_;
   DeadlineRequestHandler* deadline_req_handler_;
+  RateLimiter* rl_;
  public:
-  explicit Session(tcp::socket socket, Wallet* wallet, DeadlineRequestHandler* deadline_req_handler)
+  explicit Session(tcp::socket socket, Wallet* wallet, DeadlineRequestHandler* deadline_req_handler, RateLimiter* rl)
       : socket_(std::move(socket)),
         strand_(socket_.get_executor()),
         wallet_(wallet),
-        deadline_req_handler_(deadline_req_handler) {}
+        deadline_req_handler_(deadline_req_handler),
+        rl_(rl) {}
 
   void run();
 

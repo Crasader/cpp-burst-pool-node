@@ -57,7 +57,7 @@ target_link_libraries(wallet ${Boost_LIBRARIES} pthread burstmath mysqlcppconn c
 add_library(node_com_client nodecom.grpc.pb.cc nodecom.pb.cc)
 target_link_libraries(node_com_client grpc grpc++_unsecure protobuf)
 
-add_executable(server Server.cpp Config.hpp Wallet.cpp DeadlineRequestHandler.cpp Session.cpp Session.hpp)
+add_executable(server Server.cpp Config.hpp Wallet.cpp DeadlineRequestHandler.cpp Session.cpp Session.hpp RateLimiter.hpp)
 target_link_libraries(server
   ${CMAKE_THREAD_LIBS_INIT}
   ${Boost_LIBRARIES} 

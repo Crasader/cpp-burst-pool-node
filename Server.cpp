@@ -16,6 +16,7 @@
 #include "Config.hpp"
 #include "Wallet.hpp"
 #include "Session.hpp"
+#include "RateLimiter.hpp"
 
 using tcp = boost::asio::ip::tcp;
 namespace http = boost::beast::http;
@@ -23,6 +24,7 @@ namespace http = boost::beast::http;
 Config* cfg;
 Wallet* wallet;
 DeadlineRequestHandler* deadline_req_handler;
+RateLimiter* rate_limiter;
 
 class Listener : public std::enable_shared_from_this<Listener> {
   tcp::acceptor acceptor_;
@@ -76,7 +78,7 @@ class Listener : public std::enable_shared_from_this<Listener> {
     if(ec) {
       LOG(ERROR) << "accept: " << ec.message();
     } else {
-      std::make_shared<Session>(std::move(socket_), wallet, deadline_req_handler)->run();
+      std::make_shared<Session>(std::move(socket_), wallet, deadline_req_handler, rate_limiter)->run();
     }
 
     do_accept();
@@ -89,6 +91,7 @@ int main(int argc, char* argv[]) {
   cfg = new Config("config.json");
   wallet = new Wallet(cfg->wallet_url_, cfg->db_address_, cfg->db_name_, cfg->db_user_, cfg->db_password_);
   deadline_req_handler = new DeadlineRequestHandler(cfg, wallet);
+  rate_limiter = new RateLimiter(cfg->allow_requests_per_second_, cfg->burst_size_);
 
   auto const address = boost::asio::ip::make_address(cfg->listen_address_);
   auto const port = cfg->listen_port_;

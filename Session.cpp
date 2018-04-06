@@ -60,6 +60,9 @@ void Session::on_read(boost::system::error_code ec, std::size_t bytes_transferre
 void Session::handle_request() {
   std::map<std::string, std::string> params = parse_url(req_.target().to_string());
 
+  boost::asio::ip::address addr = socket_.local_endpoint().address();
+  std::string limiter_key = addr.to_string();
+
   auto req_type = params.find("requestType");
   if (req_type == params.end()) {
     http::response<http::string_body> res{http::status::bad_request, req_.version()};
@@ -67,11 +70,22 @@ void Session::handle_request() {
     return;
   }
 
-  if (req_type->second == "getMiningInfo") {
+  std::string req_type_str = req_type->second;
+  limiter_key += req_type_str;
+
+  if (!rl_->aquire(limiter_key)) {
+    http::response<http::string_body> res{http::status::service_unavailable, req_.version()};
+    do_write(res);
+    return;
+  }
+
+  if (req_type_str == "getMiningInfo") {
+    limiter_key += "getMiningInfo";
     http::response<http::string_body> res{http::status::ok, req_.version()};
     res.body() = wallet_->get_cached_mining_info();
     do_write(res);
-  } else if (req_type->second == "submitNonce") {
+  } else if (req_type_str == "submitNonce") {
+    limiter_key += "submitNonce";
     process_submit_nonce_req(params);
   } else {
     http::response<http::string_body> res{http::status::bad_request, req_.version()};
