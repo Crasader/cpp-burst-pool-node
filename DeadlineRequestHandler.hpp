@@ -46,8 +46,7 @@ class DeadlineRequestHandler {
       : deadline_limit_(cfg->deadline_limit_),
         wallet_(wallet),
         work_(io_service_) {
-    node_com_client_ = new NodeComClient(grpc::CreateChannel(cfg->pool_address_,
-                                                             grpc::InsecureChannelCredentials()));
+    node_com_client_ = new NodeComClient(cfg->pool_address_);
 
     for (int i = 0; i < cfg->validator_thread_count_; i++)
       threadpool_.create_thread(boost::bind(&boost::asio::io_service::run, &io_service_));
