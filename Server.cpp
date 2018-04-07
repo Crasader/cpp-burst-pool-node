@@ -89,7 +89,8 @@ int main(int argc, char* argv[]) {
   google::InitGoogleLogging(argv[0]);
 
   cfg = new Config("config.json");
-  wallet = new Wallet(cfg->wallet_url_, cfg->db_address_, cfg->db_name_, cfg->db_user_, cfg->db_password_);
+  wallet = new Wallet(cfg->wallet_url_, cfg->db_address_, cfg->db_name_, cfg->db_user_, cfg->db_password_,
+                      cfg->deadline_limit_);
   deadline_req_handler = new DeadlineRequestHandler(cfg, wallet);
   rate_limiter = new RateLimiter(cfg->allow_requests_per_second_, cfg->burst_size_);
 

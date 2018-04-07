@@ -52,17 +52,18 @@ class Wallet {
   sql::Connection* con_;
   sql::Statement* reward_recip_stmt_;
 
-  boost::shared_mutex _new_block_mu;
-  std::unordered_map<uint64_t, std::shared_ptr<MinerRound>> _miners;
+  boost::shared_mutex new_block_mu_;
+  std::unordered_map<uint64_t, std::shared_ptr<MinerRound>> miners_;
 
-  const std::string _mining_info_uri;
+  const std::string mining_info_uri_;
+  const uint64_t deadline_limit_;
 
   void cache_miners(uint64_t height);
  public:
   Wallet(const std::string mining_info_uri, std::string db_addr, std::string db_name,
-         std::string db_user, std::string db_pw):
-      _mining_info_uri(mining_info_uri),
-
+         std::string db_user, std::string db_pw, uint64_t deadline_limit):
+      mining_info_uri_(mining_info_uri),
+      deadline_limit_(deadline_limit),
       driver_(get_driver_instance()),
       con_(driver_->connect(db_addr, db_user, db_pw)) {
     con_->setSchema(db_name);

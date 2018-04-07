@@ -13,7 +13,7 @@ std::string Wallet::get_mining_info() {
   curlpp::Cleanup myCleanup;
   std::ostringstream os;
   try {
-    os << curlpp::options::Url(_mining_info_uri);
+    os << curlpp::options::Url(mining_info_uri_);
   } catch (std::exception& e) {
     LOG(ERROR) << "getting mining info: " << e.what();
   }
@@ -50,7 +50,7 @@ bool Wallet::refresh_block() {
   Block current_block;
   get_current_block(current_block);
   if (current_block.height_ < height) {
-    boost::upgrade_lock<boost::shared_mutex> lock(_new_block_mu);
+    boost::upgrade_lock<boost::shared_mutex> lock(new_block_mu_);
     boost::upgrade_to_unique_lock<boost::shared_mutex> unique_lock(lock);
 
     std::array<uint8_t, 32> gensig;
@@ -65,12 +65,17 @@ bool Wallet::refresh_block() {
     current_block_.gensig_ = gensig;
     current_block_.scoop_ = calculate_scoop(height, (uint8_t *) &gensig[0]);
 
+    std::string adapted_mining_info = "{\"generationSignature\":\"" + gensig_str +                  + "\"," +
+                                      "\"baseTarget\":\""         + std::to_string(base_target)     + "\"," +
+                                      "\"height\":\""             + std::to_string(height)          + "\"," +
+                                      "\"targetDeadline\":\""     + std::to_string(deadline_limit_) + "\"}";
+
     int i = cache_idx_.load();
     if (i == 0) {
-      mining_info_1_ = mining_info;
+      mining_info_1_ = adapted_mining_info;
       cache_idx_.store(1);
     } else {
-      mining_info_0_ = mining_info;
+      mining_info_0_ = adapted_mining_info;
       cache_idx_.store(0);
     }
     return true;
@@ -87,7 +92,7 @@ void Wallet::refresh_blocks() {
 }
 
 void Wallet::get_current_block(Block &block) {
-  boost::upgrade_lock<boost::shared_mutex> lock(_new_block_mu);
+  boost::upgrade_lock<boost::shared_mutex> lock(new_block_mu_);
   block.height_ = current_block_.height_;
   block.base_target_ = current_block_.base_target_;
   block.gensig_ = current_block_.gensig_;
@@ -111,13 +116,13 @@ void Wallet::cache_miners(uint64_t height) {
   std::unordered_map<uint64_t, std::shared_ptr<MinerRound>> _new_miners;
   while (res->next()) {
     uint64_t account_id = res->getUInt64(1);
-    if (_miners.find(account_id) == _miners.end()) {
+    if (miners_.find(account_id) == miners_.end()) {
       std::shared_ptr<MinerRound> miner_round(new MinerRound);
       miner_round->deadline = 0xFFFFFFFFFFFFFFFF;
       miner_round->height = height;
       _new_miners[account_id] = miner_round;
     } else {
-      auto miner_round = _miners[account_id];
+      auto miner_round = miners_[account_id];
       miner_round->mu.lock();
       miner_round->deadline = 0xFFFFFFFFFFFFFFFF;
       miner_round->height = height;
@@ -125,21 +130,21 @@ void Wallet::cache_miners(uint64_t height) {
       _new_miners[account_id] = miner_round;
     }
 
-    _miners = _new_miners;
+    miners_ = _new_miners;
   }
   delete res;
 }
 
 bool Wallet::correct_reward_recipient(uint64_t account_id) {
-  boost::shared_lock<boost::shared_mutex> lock(_new_block_mu);
-  bool c = _miners.find(account_id) != _miners.end();
+  boost::shared_lock<boost::shared_mutex> lock(new_block_mu_);
+  bool c = miners_.find(account_id) != miners_.end();
   return c;
 }
 
 std::shared_ptr<MinerRound> Wallet::get_miner_round(uint64_t account_id) {
-  boost::shared_lock<boost::shared_mutex> lock(_new_block_mu);
-  auto miner_round = _miners.find(account_id);
-  if (miner_round == _miners.end()) {
+  boost::shared_lock<boost::shared_mutex> lock(new_block_mu_);
+  auto miner_round = miners_.find(account_id);
+  if (miner_round == miners_.end()) {
     return nullptr;
   } else {
     return miner_round->second;
