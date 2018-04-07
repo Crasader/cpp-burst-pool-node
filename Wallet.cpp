@@ -7,11 +7,16 @@
 #include <curlpp/cURLpp.hpp>
 #include <curlpp/Options.hpp>
 #include <rapidjson/document.h>
+#include <glog/logging.h>
 
 std::string Wallet::get_mining_info() {
     curlpp::Cleanup myCleanup;
     std::ostringstream os;
-    os << curlpp::options::Url(_mining_info_uri);
+    try {
+      os << curlpp::options::Url(_mining_info_uri);
+    } catch (std::exception& e) {
+      LOG(ERROR) << "getting mining info: " << e.what();
+    }
     return os.str();
 }
 
