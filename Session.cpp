@@ -76,6 +76,7 @@ void Session::handle_request() {
   if (!rl_->aquire(limiter_key)) {
     http::response<http::string_body> res{http::status::service_unavailable, req_.version()};
     do_write(res);
+    LOG(ERROR) << "rate limit exceeded: " << addr;
     return;
   }
 
@@ -121,10 +122,10 @@ void Session::process_submit_nonce_req(std::map<std::string, std::string>& param
   std::shared_ptr<CalcDeadlineReq> cdr(new CalcDeadlineReq);
   cdr->account_id = account_id;
   cdr->nonce = nonce;
-  cdr->height = current_block._height;
-  cdr->scoop_nr = current_block._scoop;
-  cdr->base_target = current_block._base_target;
-  cdr->gensig = current_block._gensig;
+  cdr->height = current_block.height_;
+  cdr->scoop_nr = current_block.scoop_;
+  cdr->base_target = current_block.base_target_;
+  cdr->gensig = current_block.gensig_;
   cdr->session = shared_from_this();
 
   deadline_req_handler_->enque_req(cdr);
