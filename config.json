@@ -14,5 +14,5 @@
     "connectionThreadCount": 8,
     "allowRequestsPerSecond": 1000.0,
     "burstSize": 1500.0,
-    "walletUrl": "http://176.9.47.157:6876/burst?requestType=getMiningInfo"
+    "walletUrl": "http://176.9.47.157:6876"
 }

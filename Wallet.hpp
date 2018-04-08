@@ -60,9 +60,9 @@ class Wallet {
 
   void cache_miners(uint64_t height);
  public:
-  Wallet(const std::string mining_info_uri, std::string db_addr, std::string db_name,
+  Wallet(const std::string wallet_url, std::string db_addr, std::string db_name,
          std::string db_user, std::string db_pw, uint64_t deadline_limit):
-      mining_info_uri_(mining_info_uri),
+      mining_info_uri_(wallet_url + "/burst?requestType=getMiningInfo"),
       deadline_limit_(deadline_limit),
       driver_(get_driver_instance()),
       con_(driver_->connect(db_addr, db_user, db_pw)) {
