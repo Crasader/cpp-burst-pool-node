@@ -30,13 +30,35 @@ bool Wallet::refresh_block() {
     document.Parse(mining_info.c_str());
     assert(document.IsObject());
 
-    assert(document.HasMember("generationSignature"));
-    assert(document.HasMember("height"));
-    assert(document.HasMember("baseTarget"));
+    if (!document.HasMember("generationSignature")) {
+      LOG(ERROR) << "parsing mining info: missing generation signature";
+      return 0;
+    }
 
-    assert(document["generationSignature"].IsString());
-    assert(document["height"].IsString());
-    assert(document["baseTarget"].IsString());
+    if (!document.HasMember("height")) {
+      LOG(ERROR) << "parsing mining info: missing height";
+      return 0;
+    }
+
+    if (!document.HasMember("baseTarget")) {
+      LOG(ERROR) << "parsing mining info: base target";
+      return 0;
+    }
+
+    if (!document["generationSignature"].IsString()) {
+      LOG(ERROR) << "parsing mining info: generation signature is not a string";
+      return 0;
+    }
+
+    if (!document["height"].IsString()) {
+      LOG(ERROR) << "parsing mining info: height is not a string";
+      return 0;
+    }
+
+    if (!document["baseTarget"].IsString()) {
+      LOG(ERROR) << "parsing mining info: base target is not a string";
+      return 0;
+    }
 
     height = std::stoull(document["height"].GetString());
     base_target = std::stoull(document["baseTarget"].GetString());
