@@ -7,7 +7,7 @@
 
 class Config {
  public:
-  Config(const std::string &cfg_file) {
+  Config(std::string cfg_file) {
     std::ifstream config_file(cfg_file);
     std::string config_str((std::istreambuf_iterator<char>(config_file)),
                            std::istreambuf_iterator<char>());
