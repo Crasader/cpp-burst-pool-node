@@ -78,6 +78,11 @@ class Listener : public std::enable_shared_from_this<Listener> {
     if(ec) {
       LOG(ERROR) << "accept: " << ec.message();
     } else {
+      struct timeval tv;
+      tv.tv_sec  = 40;
+      tv.tv_usec = 0;
+      setsockopt(socket_.native_handle(), SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+      setsockopt(socket_.native_handle(), SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
       std::make_shared<Session>(std::move(socket_), wallet, deadline_req_handler, rate_limiter)->run();
     }
 
