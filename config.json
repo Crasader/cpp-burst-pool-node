@@ -14,5 +14,6 @@
     "connectionThreadCount": 8,
     "allowRequestsPerSecond": 1000.0,
     "burstSize": 1500.0,
-    "walletUrl": "http://176.9.47.157:6876"
+    "walletUrl": "http://176.9.47.157:6876",
+    "PoC2StartHeight": 18446744073709551615
 }

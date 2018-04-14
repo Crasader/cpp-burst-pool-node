@@ -9,7 +9,7 @@ void DeadlineRequestHandler::enque_req(std::shared_ptr<CalcDeadlineReq> calc_dea
 void DeadlineRequestHandler::calculate_deadlines(std::array<std::shared_ptr<CalcDeadlineReq>, 8> creqs, int pending) {
   uint64_t deadlines[8];
   calculate_deadlines_avx2(
-      0,
+      creqs[0]->height >= poc2_start_height_,
 
       creqs[0]->base_target, creqs[1]->base_target, creqs[2]->base_target, creqs[3]->base_target,
       creqs[4]->base_target, creqs[5]->base_target, creqs[6]->base_target, creqs[7]->base_target,

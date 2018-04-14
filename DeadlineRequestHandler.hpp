@@ -38,12 +38,14 @@ class DeadlineRequestHandler {
   NodeComClient *node_com_client_;
 
   uint64_t deadline_limit_;
+  uint64_t poc2_start_height_;
 
   void validate_deadline(std::shared_ptr<CalcDeadlineReq> creq, uint64_t deadline);
   void calculate_deadlines(std::array<std::shared_ptr<CalcDeadlineReq>, 8> creqs, int pending);
  public:
   DeadlineRequestHandler(Config *cfg, Wallet *wallet)
       : deadline_limit_(cfg->deadline_limit_),
+        poc2_start_height_(cfg->poc2_start_height_),
         wallet_(wallet),
         work_(io_service_) {
     node_com_client_ = new NodeComClient(cfg->pool_address_);

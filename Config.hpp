@@ -75,6 +75,10 @@ class Config {
     assert(document.HasMember("walletUrl"));
     assert(document["walletUrl"].IsString());
     wallet_url_ = document["walletUrl"].GetString();
+
+    assert(document.HasMember("PoC2StartHeight"));
+    assert(document["PoC2StartHeight"].IsUint64());
+    poc2_start_height_ = document["PoC2StartHeight"].GetUint64();
   };
 
   std::string secret_;
@@ -99,4 +103,6 @@ class Config {
 
   double allow_requests_per_second_;
   double burst_size_;
+
+  uint64_t poc2_start_height_;
 };
