@@ -11,6 +11,12 @@
 #include "Config.hpp"
 #include "NodeComClient.hpp"
 
+#ifdef USE_AVX2
+#define PARALLEL_VALIDATIONS 8
+#else
+#define PARALLEL_VALIDATIONS 4
+#endif
+
 class Session;
 
 struct CalcDeadlineReq {
@@ -41,7 +47,7 @@ class DeadlineRequestHandler {
   uint64_t poc2_start_height_;
 
   void validate_deadline(std::shared_ptr<CalcDeadlineReq> creq, uint64_t deadline);
-  void calculate_deadlines(std::array<std::shared_ptr<CalcDeadlineReq>, 8> creqs, int pending);
+  void validate_deadlines(std::array<std::shared_ptr<CalcDeadlineReq>, PARALLEL_VALIDATIONS> creqs, int pending);
  public:
   DeadlineRequestHandler(Config *cfg, Wallet *wallet)
       : deadline_limit_(cfg->deadline_limit_),
