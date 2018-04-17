@@ -18,7 +18,10 @@ find_package(Protobuf REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package (Threads)
 find_package(Boost REQUIRED COMPONENTS system thread)
-include_directories(${Boost_INCLUDE_DIRS})
+include_directories(
+  ${Boost_INCLUDE_DIRS}
+  vendor/beast/include
+  )
 
 set(SOURCE_FILES
   Server.cpp
