@@ -17,6 +17,7 @@ services:
      - 8125:8125
   mariadb:
     image: mariadb:10
+    restart: always
     environment:
      - MYSQL_ROOT_PASSWORD=burstwallet
      - MYSQL_DATABASE=burstwallet
