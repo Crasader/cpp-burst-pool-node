@@ -1,5 +1,7 @@
+.PHONY: test
+
 start:
-	cd build; cmake ..; make; mv compile_commands.json ..
+	cd build; cmake ..; make -j9; mv compile_commands.json ..
 run: start
 	./build/server
 clean:
@@ -7,4 +9,10 @@ clean:
 proto:
 	protoc -I protos --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_cpp_plugin` protos/nodecom.proto
 	protoc -I protos --cpp_out=. protos/nodecom.proto
+test:
+	cd test; go test
+deploy:
+	ssh root@206.189.35.196 'su - burstnode -s /bin/bash -c "source ~/.profile && cd app && git pull && make"'
+
+
 
