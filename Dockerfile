@@ -1,9 +1,6 @@
 FROM greyltc/archlinux-aur
 MAINTAINER Bernhard Specht <bernhard@specht.net>
 
-ADD setup.sh /usr/sbin/setup
-RUN setup docker
-
 RUN pacman -Syu --noconfirm --needed
 RUN pacman -S cmake --noconfirm --needed
 RUN pacman -S rapidjson --noconfirm --needed
@@ -24,5 +21,7 @@ COPY protos protos
 RUN mkdir -p build
 COPY config.json .
 RUN make
+
+EXPOSE 8126
 
 CMD ["build/src/server"]
