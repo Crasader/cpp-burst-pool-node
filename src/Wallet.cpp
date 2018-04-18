@@ -1,11 +1,9 @@
 #include <iostream>
-#include <chrono>
 #include "Wallet.hpp"
 #include "burstmath.h"
 #include <cppconn/resultset.h>
 #include <stdio.h>
 #include <rapidjson/document.h>
-#include <glog/logging.h>
 
 std::string Wallet::get_mining_info() {
   CURLcode res;

@@ -5,6 +5,7 @@
 #include <string>
 #include <stdint.h>
 #include <atomic>
+#include <chrono>
 #include "mysql_connection.h"
 #include <cppconn/driver.h>
 #include <cppconn/statement.h>
@@ -13,6 +14,7 @@
 #include <memory>
 #include <mutex>
 #include <curl/curl.h>
+#include <glog/logging.h>
 #include "Config.hpp"
 
 class Block {
@@ -74,17 +76,30 @@ class Wallet {
       mining_info_uri_(cfg.wallet_url_ + "/burst?requestType=getMiningInfo"),
       deadline_limit_(cfg.deadline_limit_),
       driver_(get_driver_instance()),
-      con_(driver_->connect(cfg.db_address_, cfg.db_user_, cfg.db_password_)),
       curl_(curl_easy_init()) {
     curl_easy_setopt(curl_, CURLOPT_URL, mining_info_uri_.c_str());
     curl_easy_setopt(curl_, CURLOPT_WRITEFUNCTION, write_cb);
     curl_easy_setopt(curl_, CURLOPT_WRITEDATA, &mining_info_res_);
 
+    int tries = 0;
+    for (;;) {
+      try {
+        con_= driver_->connect(cfg.db_address_, cfg.db_user_, cfg.db_password_);
+        break;
+      } catch (sql::SQLException& e) {
+        LOG(ERROR) << "sql connect: " << e.what();
+        tries++;
+        if (tries == 10) {
+          throw e;
+        }
+        boost::this_thread::sleep_for(boost::chrono::seconds(1));
+      }
+    }
+
     con_->setSchema(cfg.db_name_);
     reward_recip_stmt_ = con_->createStatement();
 
-    bool refreshed = refresh_block();
-    assert(refreshed);
+    refresh_block();
 
     cache_miners(current_block_.height_);
 
