@@ -68,7 +68,6 @@ target_link_libraries(server
   grpc++_unsecure
   protobuf
   mysqlcppconn
-  curlpp
   curl
   )
 

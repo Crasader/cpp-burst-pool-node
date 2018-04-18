@@ -4,20 +4,21 @@
 #include "burstmath.h"
 #include <cppconn/resultset.h>
 #include <stdio.h>
-#include <curlpp/cURLpp.hpp>
-#include <curlpp/Options.hpp>
 #include <rapidjson/document.h>
 #include <glog/logging.h>
 
 std::string Wallet::get_mining_info() {
-  curlpp::Cleanup myCleanup;
-  std::ostringstream os;
-  try {
-    os << curlpp::options::Url(mining_info_uri_);
-  } catch (std::exception& e) {
-    LOG(ERROR) << "getting mining info: " << e.what();
+  CURLcode res;
+  res = curl_easy_perform(curl_);
+
+  if (res != CURLE_OK) {
+    LOG(ERROR) << "get mining info: " << res;
+    return "";
   }
-  return os.str();
+
+  std::string copy = mining_info_res_;
+  mining_info_res_ = "";
+  return copy;
 }
 
 bool Wallet::refresh_block() {

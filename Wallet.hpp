@@ -12,6 +12,7 @@
 #include <unordered_map>
 #include <memory>
 #include <mutex>
+#include <curl/curl.h>
 #include "Config.hpp"
 
 class Block {
@@ -56,16 +57,29 @@ class Wallet {
   boost::shared_mutex new_block_mu_;
   std::unordered_map<uint64_t, std::shared_ptr<MinerRound>> miners_;
 
+  CURL *curl_;
+  std::string mining_info_res_;
+
   const std::string mining_info_uri_;
   const uint64_t deadline_limit_;
 
   void cache_miners(uint64_t height);
+
+  static size_t write_cb(void *contents, size_t size, size_t nmemb, void *userp) {
+    ((std::string*)userp)->append((char*)contents, size * nmemb);
+    return size * nmemb;
+  }
  public:
   Wallet(Config& cfg):
       mining_info_uri_(cfg.wallet_url_ + "/burst?requestType=getMiningInfo"),
       deadline_limit_(cfg.deadline_limit_),
       driver_(get_driver_instance()),
-      con_(driver_->connect(cfg.db_address_, cfg.db_user_, cfg.db_password_)) {
+      con_(driver_->connect(cfg.db_address_, cfg.db_user_, cfg.db_password_)),
+      curl_(curl_easy_init()) {
+    curl_easy_setopt(curl_, CURLOPT_URL, mining_info_uri_.c_str());
+    curl_easy_setopt(curl_, CURLOPT_WRITEFUNCTION, write_cb);
+    curl_easy_setopt(curl_, CURLOPT_WRITEDATA, &mining_info_res_);
+
     con_->setSchema(cfg.db_name_);
     reward_recip_stmt_ = con_->createStatement();
 
