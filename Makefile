@@ -4,6 +4,9 @@ run: start
 	./build/server
 clean:
 	cd build; make clean;
+docker:
+	sudo docker build -t spebern/cpp-burst-pool-node .
+	sudo docker-compose-up -d
 proto:
 	protoc -I protos --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_cpp_plugin` protos/nodecom.proto
 	protoc -I protos --cpp_out=. protos/nodecom.proto
