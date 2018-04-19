@@ -16,10 +16,6 @@ class Config {
     document.Parse(config_str.c_str());
     assert(document.IsObject());
 
-    assert(document.HasMember("secret"));
-    assert(document["secret"].IsString());
-    secret_ = document["secret"].GetString();
-
     assert(document.HasMember("deadlineLimit"));
     assert(document["deadlineLimit"].IsUint64());
     deadline_limit_ = document["deadlineLimit"].GetUint64();
@@ -80,8 +76,6 @@ class Config {
     assert(document["PoC2StartHeight"].IsUint64());
     poc2_start_height_ = document["PoC2StartHeight"].GetUint64();
   };
-
-  std::string secret_;
 
   uint64_t deadline_limit_;
 
