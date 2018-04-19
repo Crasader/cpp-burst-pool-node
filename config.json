@@ -10,8 +10,6 @@
     "dbUser": "root",
     "dbPassword": "burstwallet",
     "poolAddress": "0.0.0.0:8854",
-    "validatorThreadCount": 8,
-    "connectionThreadCount": 8,
     "allowRequestsPerSecond": 10000000.0,
     "burstSize": 1500000000.0,
     "walletUrl": "burstcoin:8125",

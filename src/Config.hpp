@@ -4,6 +4,8 @@
 #include <iostream>
 #include <fstream>
 #include <stdint.h>
+#include <thread>
+#include <glog/logging.h>
 
 class Config {
  public:
@@ -52,13 +54,21 @@ class Config {
     assert(document["dbPassword"].IsString());
     db_password_ = document["dbPassword"].GetString();
 
-    assert(document.HasMember("connectionThreadCount"));
-    assert(document["connectionThreadCount"].IsInt());
-    connection_thread_count_ = document["connectionThreadCount"].GetInt();
+    if (document.HasMember("connectionThreadCount")) {
+      assert(document["connectionThreadCount"].IsInt());
+      connection_thread_count_ = document["connectionThreadCount"].GetInt();
+    } else {
+      connection_thread_count_ = std::thread::hardware_concurrency();
+      LOG(INFO) << "using " << connection_thread_count_ << " as default number of cores for connections";
+    }
 
-    assert(document.HasMember("validatorThreadCount"));
-    assert(document["validatorThreadCount"].IsInt());
-    validator_thread_count_ = document["validatorThreadCount"].GetInt();
+    if (document.HasMember("validatorThreadCount")) {
+      assert(document["validatorThreadCount"].IsInt());
+      validator_thread_count_ = document["validatorThreadCount"].GetInt();
+    } else {
+      validator_thread_count_ = std::thread::hardware_concurrency();
+      LOG(INFO) << "using " << validator_thread_count_ << " as default number of cores for deadline validations";
+    }
 
     assert(document.HasMember("allowRequestsPerSecond"));
     assert(document["allowRequestsPerSecond"].IsDouble());
