@@ -19,8 +19,9 @@ COPY CMakeLists.txt .
 COPY Makefile .
 COPY protos protos
 RUN mkdir -p build
-COPY config.json .
 RUN make
+
+COPY config.json .
 
 EXPOSE 8126
 
