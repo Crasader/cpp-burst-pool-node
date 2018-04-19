@@ -136,21 +136,25 @@ std::string Wallet::get_cached_mining_info() {
 void Wallet::cache_miners(uint64_t height) {
   sql::ResultSet *res;
 
-  res = reward_recip_stmt_->executeQuery("SELECT CAST(account_id AS UNSIGNED) FROM reward_recip_assign WHERE recip_id = CAST(10282355196851764065 AS SIGNED) AND latest = 1");
+  res = reward_recip_stmt_->executeQuery(recip_query_);
 
   std::unordered_map<uint64_t, std::shared_ptr<MinerRound>> _new_miners;
   while (res->next()) {
     uint64_t account_id = res->getUInt64(1);
+    uint64_t recip_id = res->getUInt64(2);
+
     if (miners_.find(account_id) == miners_.end()) {
       std::shared_ptr<MinerRound> miner_round(new MinerRound);
       miner_round->deadline = 0xFFFFFFFFFFFFFFFF;
       miner_round->height = height;
+      miner_round->recip_id = recip_id;
       _new_miners[account_id] = miner_round;
     } else {
       auto miner_round = miners_[account_id];
       miner_round->mu.lock();
       miner_round->deadline = 0xFFFFFFFFFFFFFFFF;
       miner_round->height = height;
+      miner_round->recip_id = recip_id;
       miner_round->mu.unlock();
       _new_miners[account_id] = miner_round;
     }
@@ -160,10 +164,13 @@ void Wallet::cache_miners(uint64_t height) {
   delete res;
 }
 
-bool Wallet::correct_reward_recipient(uint64_t account_id) {
+uint64_t Wallet::get_reward_recipient(uint64_t account_id) {
   boost::shared_lock<boost::shared_mutex> lock(new_block_mu_);
-  bool c = miners_.find(account_id) != miners_.end();
-  return c;
+  auto search = miners_.find(account_id);
+  if (search == miners_.end()) {
+    return 0;
+  }
+  return search->second->recip_id;
 }
 
 std::shared_ptr<MinerRound> Wallet::get_miner_round(uint64_t account_id) {

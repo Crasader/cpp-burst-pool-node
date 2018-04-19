@@ -73,7 +73,7 @@ void DeadlineRequestHandler::validate_deadline(std::shared_ptr<CalcDeadlineReq> 
       req.set_nonce(creq->nonce);
       req.set_deadline(deadline);
       req.set_blockheight(creq->height);
-      node_com_client_->do_submit_nonce(req);
+      node_com_client_->do_submit_nonce(creq->recip_id, req);
       miner_round->deadline = deadline;
     }
     miner_round->mu.unlock();

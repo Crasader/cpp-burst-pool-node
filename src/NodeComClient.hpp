@@ -1,4 +1,4 @@
-#pragma once 
+#pragma once
 
 #include <memory>
 #include <string>
@@ -16,22 +16,44 @@ using grpc::ClientAsyncResponseReader;
 using grpc::ClientContext;
 
 class NodeComClient {
+ private:
+  struct Server {
+    std::shared_ptr<grpc::Channel> channel;
+    std::unique_ptr<NodeCom::Stub> stub;
+  };
+
+  struct AsyncClientCall {
+    SubmitNonceReply reply;
+    ClientContext context;
+    Status status;
+    std::unique_ptr<ClientAsyncResponseReader<SubmitNonceReply>> response_reader;
+  };
+
+  std::map<uint64_t, Server> pool_id_to_server_;
+
+  grpc::CompletionQueue cq_;
+
  public:
-  NodeComClient(std::string pool_address)
-      : channel_(grpc::CreateChannel(pool_address, grpc::InsecureChannelCredentials())),
-        stub_(NodeCom::NewStub(channel_)) {
+  NodeComClient(std::map<uint64_t, std::string> pool_id_to_addr) {
+    for (auto it = pool_id_to_addr.begin(); it != pool_id_to_addr.end(); it++) {
+      auto channel = grpc::CreateChannel(it->second, grpc::InsecureChannelCredentials());
+      pool_id_to_server_[it->first].channel = channel;
+      pool_id_to_server_[it->first].stub = NodeCom::NewStub(channel);
+    }
 
     std::thread thread = std::thread(&NodeComClient::async_complete_rpc, this);
     thread.detach();
   }
 
-  void do_submit_nonce(const SubmitNonceRequest &req) {
-    SubmitNonceReply res;
-    grpc::ClientContext context;
+  void do_submit_nonce(uint64_t recip_id, SubmitNonceRequest req) {
+    auto search = pool_id_to_server_.find(recip_id);
+    if (search == pool_id_to_server_.end()) {
+      LOG(ERROR) << "no pool server found that serves recip " << recip_id;
+      return;
+    }
 
     AsyncClientCall* call = new AsyncClientCall;
-
-    call->response_reader = stub_->PrepareAsyncSubmitNonce(&call->context, req, &cq_);
+    call->response_reader = search->second.stub->PrepareAsyncSubmitNonce(&call->context, req, &cq_);
     call->response_reader->StartCall();
     call->response_reader->Finish(&call->reply, &call->status, (void*)call);
   }
@@ -48,18 +70,4 @@ class NodeComClient {
       delete call;
     }
   }
- private:
-  struct AsyncClientCall {
-    SubmitNonceReply reply;
-    ClientContext context;
-    Status status;
-    std::unique_ptr<ClientAsyncResponseReader<SubmitNonceReply>> response_reader;
-  };
-
-  std::shared_ptr<grpc::Channel> channel_;
-  std::unique_ptr<NodeCom::Stub> stub_;
-  grpc::CompletionQueue cq_;
 };
-
-
-        

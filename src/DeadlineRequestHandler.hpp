@@ -25,6 +25,7 @@ struct CalcDeadlineReq {
   uint64_t height;
   uint32_t scoop_nr;
   uint64_t base_target;
+  uint64_t recip_id;
   std::array<uint8_t, 32> gensig;
   std::shared_ptr<Session> session;
 };
@@ -54,7 +55,7 @@ class DeadlineRequestHandler {
         poc2_start_height_(cfg->poc2_start_height_),
         wallet_(wallet),
         work_(io_service_) {
-    node_com_client_ = new NodeComClient(cfg->pool_address_);
+    node_com_client_ = new NodeComClient(cfg->pool_id_to_addr_);
 
     for (int i = 0; i < cfg->validator_thread_count_; i++)
       threadpool_.create_thread(boost::bind(&boost::asio::io_service::run, &io_service_));

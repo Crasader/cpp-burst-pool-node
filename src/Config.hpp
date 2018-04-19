@@ -5,7 +5,10 @@
 #include <fstream>
 #include <stdint.h>
 #include <thread>
+#include <map>
 #include <glog/logging.h>
+
+using namespace rapidjson;
 
 class Config {
  public:
@@ -13,7 +16,7 @@ class Config {
     std::ifstream config_file(cfg_file);
     std::string config_str((std::istreambuf_iterator<char>(config_file)),
                            std::istreambuf_iterator<char>());
-    rapidjson::Document document;
+    Document document;
 
     document.Parse(config_str.c_str());
     assert(document.IsObject());
@@ -30,13 +33,27 @@ class Config {
     assert(document["listenPort"].IsInt());
     listen_port_ = document["listenPort"].GetInt();
 
-    assert(document.HasMember("poolPublicId"));
-    assert(document["poolPublicId"].IsUint64());
-    pool_public_id_ = document["poolPublicId"].GetUint64();
+    assert(document.HasMember("poolIdToAddress"));
+    Value& pool_id_to_addr = document["poolIdToAddress"];
+    assert(pool_id_to_addr.IsObject());
 
-    assert(document.HasMember("poolAddress"));
-    assert(document["poolAddress"].IsString());
-    pool_address_ = document["poolAddress"].GetString();
+    for (Value::ConstMemberIterator it = pool_id_to_addr.MemberBegin(); it != pool_id_to_addr.MemberEnd(); it++) {
+      assert(it->name.IsString());
+      assert(it->value.IsString());
+
+      std::string k = it->name.GetString();
+      std::string v = it->value.GetString();
+
+      uint64_t pool_id;
+      try {
+        pool_id = std::stoull(k);
+      } catch (const std::exception& e) {
+        LOG(ERROR) << "pool id has wrong format: " << k << " should be uint64";
+        throw e;
+      }
+
+      pool_id_to_addr_[pool_id] = v;
+    }
 
     assert(document.HasMember("dbAddress"));
     assert(document["dbAddress"].IsString());
@@ -87,13 +104,12 @@ class Config {
     poc2_start_height_ = document["PoC2StartHeight"].GetUint64();
   };
 
+  std::map<uint64_t, std::string> pool_id_to_addr_;
+
   uint64_t deadline_limit_;
 
   std::string listen_address_;
   uint16_t listen_port_;
-
-  uint64_t pool_public_id_;
-  std::string pool_address_;
 
   std::string wallet_url_;
 

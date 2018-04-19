@@ -95,7 +95,7 @@ void Session::handle_request() {
 }
 
 void Session::process_submit_nonce_req(std::map<std::string, std::string>& params) {
-  uint64_t account_id, nonce;
+  uint64_t account_id, nonce, recip_id;
 
   try {
     account_id = std::stoull(params["accountId"]);
@@ -111,7 +111,8 @@ void Session::process_submit_nonce_req(std::map<std::string, std::string>& param
     return;
   }
 
-  if (!wallet_->correct_reward_recipient(account_id)) {
+  recip_id = wallet_->get_reward_recipient(account_id);
+  if (!recip_id) {
     writeJSONError(1004, "Account's reward recipient doesn't match the pool's");
     return;
   }
@@ -127,6 +128,7 @@ void Session::process_submit_nonce_req(std::map<std::string, std::string>& param
   cdr->base_target = current_block.base_target_;
   cdr->gensig = current_block.gensig_;
   cdr->session = shared_from_this();
+  cdr->recip_id = recip_id;
 
   deadline_req_handler_->enque_req(cdr);
 }
