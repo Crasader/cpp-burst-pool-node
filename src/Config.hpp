@@ -41,18 +41,18 @@ class Config {
       assert(it->name.IsString());
       assert(it->value.IsString());
 
-      std::string k = it->name.GetString();
-      std::string v = it->value.GetString();
+      std::string pool_id_str = it->name.GetString();
+      std::string addr = it->value.GetString();
 
       uint64_t pool_id;
       try {
-        pool_id = std::stoull(k);
+        pool_id = std::stoull(pool_id_str);
       } catch (const std::exception& e) {
-        LOG(ERROR) << "pool id has wrong format: " << k << " should be uint64";
+        LOG(ERROR) << "pool id has wrong format: " << pool_id_str << " should be uint64";
         throw e;
       }
 
-      pool_id_to_addr_[pool_id] = v;
+      pool_id_to_addr_[pool_id] = addr;
     }
 
     assert(document.HasMember("dbAddress"));
