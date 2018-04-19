@@ -1,7 +1,7 @@
 start:
 	cd build; cmake ..; make -j9; mv compile_commands.json ..
 run: start
-	./build/server
+	./build/src/server
 clean:
 	cd build; make clean;
 docker:
