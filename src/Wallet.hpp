@@ -34,8 +34,8 @@ class Block {
 
 typedef struct MinerRound {
   std::mutex mu;
-  int64_t deadline;
-  int64_t height;
+  uint64_t deadline;
+  uint64_t height;
   uint64_t recip_id;
 } MinerRound;
 
