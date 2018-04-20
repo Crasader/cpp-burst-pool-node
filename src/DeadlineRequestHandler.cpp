@@ -94,7 +94,7 @@ void DeadlineRequestHandler::distribute_deadline_reqs() {
   int pending = 0;
   int waited = 0;
   for (;;) {
-    if (pending == PARALLEL_VALIDATIONS || (pending > 0 && waited > 1000)) {
+    if (pending == PARALLEL_VALIDATIONS || (pending > 0 && waited > 50)) {
       io_service_.post(boost::bind(&DeadlineRequestHandler::validate_deadlines, this, reqs, pending));
       pending = 0;
       waited = 0;
@@ -103,8 +103,8 @@ void DeadlineRequestHandler::distribute_deadline_reqs() {
     std::shared_ptr<CalcDeadlineReq> req;
     bool found = q_.try_dequeue(reqs[pending]);
     if (!found) {
+      boost::this_thread::sleep_for(boost::chrono::milliseconds(40));
       waited++;
-      usleep(1000);
       continue;
     }
 
